@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard — CapNet</title>
+<meta name="description" content="Manage accounts and roles, review repository-wide analytics, and audit access to the CapNet capstone archive.">
+
+<link rel="icon" href="assets/capnet-logo.png" type="image/png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="dashboard.css">
+<link rel="stylesheet" href="faculty.css">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+  <div class="atmosphere" aria-hidden="true">
+    <div class="atmosphere__grid"></div>
+    <div class="atmosphere__glow"></div>
+  </div>
+
+  <header class="topbar">
+    <a class="topbar__brand" href="index.html">
+      <img src="assets/capnet-logo.png" alt="" class="topbar__mark" width="28" height="28">
+      <span>CapNet</span>
+    </a>
+
+    <div class="topbar__right">
+      <div class="userchip">
+        <span class="userchip__avatar"><span id="userInitial">A</span></span>
+        <span class="userchip__name" id="userName">Admin</span>
+      </div>
+      <button type="button" class="btn btn--ghost btn--sm" id="signOutBtn">Sign out</button>
+    </div>
+  </header>
+
+  <main class="dash">
+
+    <section class="dash__intro">
+      <p class="eyebrow">Admin dashboard</p>
+      <h1>Welcome back, <span id="userFirstName">Admin</span></h1>
+    </section>
+
+    <section class="stats" aria-label="Institution overview">
+      <div class="stat-card">
+        <p class="stat-card__label">Registered users</p>
+        <p class="stat-card__value" id="statUsers">—</p>
+      </div>
+      <div class="stat-card">
+        <p class="stat-card__label">Capstones indexed</p>
+        <p class="stat-card__value" id="statCapstones">—</p>
+      </div>
+      <div class="stat-card stat-card--accent">
+        <p class="stat-card__label">Drafts awaiting publish</p>
+        <p class="stat-card__value" id="statDrafts">—</p>
+      </div>
+    </section>
+
+    <!-- ============== User & role management ============== -->
+    <section class="fsection">
+      <div class="fsection__head">
+        <h2 class="fsection__title">User &amp; role management</h2>
+        <p class="fsection__count"><span id="userCount">0</span> accounts</p>
+      </div>
+
+      <div class="searchbar">
+        <label class="searchbar__field">
+          <svg class="searchbar__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="M21 21L16.6 16.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <input type="text" id="userSearch" placeholder="Search by name or email…" autocomplete="off">
+        </label>
+        <label class="searchbar__select">
+          <span class="sr-only">Filter by role</span>
+          <select id="roleFilter">
+            <option value="all">All roles</option>
+            <option value="student">Student</option>
+            <option value="faculty">Faculty</option>
+            <option value="admin">Admin</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="atable-wrap">
+        <table class="atable" id="userTable">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="userTableBody"></tbody>
+        </table>
+        <p class="qlist__empty" id="userEmpty" hidden>No accounts match that search.</p>
+      </div>
+    </section>
+
+    <!-- ============== Repository reports & analytics ============== -->
+    <section class="fsection">
+      <div class="fsection__head">
+        <h2 class="fsection__title">Repository reports &amp; analytics</h2>
+        <p class="fsection__count">Computed from published capstones</p>
+      </div>
+
+      <div class="reports-grid">
+
+        <div class="report-card">
+          <p class="report-card__title">Capstones indexed by year</p>
+          <div class="barchart" id="yearChart" aria-hidden="true" hidden></div>
+          <p class="qlist__empty" id="yearChartEmpty">No published capstones with a year on file yet.</p>
+        </div>
+
+        <div class="report-card">
+          <p class="report-card__title">Top tags in the repository</p>
+          <ul class="taglist" id="tagFreqList" hidden></ul>
+          <p class="qlist__empty" id="tagFreqEmpty">No tags on published capstones yet.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============== Access & security ============== -->
+    <section class="fsection">
+      <div class="fsection__head">
+        <h2 class="fsection__title">Access &amp; security</h2>
+        <p class="fsection__count">Computed from registered accounts</p>
+      </div>
+
+      <div class="security-grid">
+        <div class="security-card" id="domainCard">
+          <p class="security-card__label">Most common account domain</p>
+          <p class="security-card__value" id="domainStatValue">—</p>
+          <p class="security-card__sub" id="domainStatSub">Loading…</p>
+        </div>
+        <div class="security-card security-card--ok">
+          <p class="security-card__label">Capstones with a PDF on file</p>
+          <p class="security-card__value" id="statSecuredDocs">—</p>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <p>&copy; 2026 CapNet. Built for students, faculty, and admins.</p>
+  </footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="supabase-config.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

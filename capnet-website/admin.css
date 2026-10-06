@@ -1,0 +1,251 @@
+/* ============================================================
+   CapNet — admin dashboard
+   Extends dashboard.css + faculty.css with user-management,
+   analytics, and access/security components.
+   ============================================================ */
+
+/* ---------- User table ---------- */
+.atable-wrap{
+  background: var(--paper);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(255,255,255,.5) inset;
+}
+
+.atable{ font-size: .88rem; }
+
+.atable thead th{
+  text-align: left;
+  font-size: .74rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--ink-50);
+  font-weight: 700;
+  padding: 14px 18px;
+  border-bottom: 1.4px solid var(--ink-08);
+}
+
+.atable tbody td{
+  padding: 13px 18px;
+  border-bottom: 1.4px solid var(--ink-08);
+  vertical-align: middle;
+  color: var(--ink);
+}
+
+.atable tbody tr:last-child td{ border-bottom: none; }
+.atable tbody tr:hover{ background: var(--paper-dim); }
+
+.atable__name{ font-weight: 600; }
+.atable__email{ color: var(--ink-50); }
+
+.roleselect{
+  font-family: inherit;
+  font-size: .82rem;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1.4px solid var(--ink-14);
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+.roleselect:focus{
+  outline: none;
+  border-color: var(--rust);
+  box-shadow: 0 0 0 3px rgba(176,58,20,.14);
+}
+
+.statuspill{
+  font-size: .74rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.statuspill--active{ background: var(--teal-tint); color: var(--teal); }
+.statuspill--suspended{ background: var(--rust-tint); color: var(--rust-dark); }
+
+.atable__actions{ text-align: right; white-space: nowrap; }
+
+.atable__actions .btn + .btn{ margin-left: 6px; }
+
+.btn--danger{
+  background: var(--rust);
+  color: #fff;
+}
+.btn--danger:hover{ background: var(--rust-dark); transform: translateY(-1px); }
+.btn--danger:disabled{ opacity: .55; pointer-events: none; }
+
+.delete-confirm{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--ink-70);
+}
+
+/* ---------- Reports grid ---------- */
+.reports-grid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.report-card{
+  background: var(--paper);
+  border-radius: var(--radius-md);
+  padding: 20px 22px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.5) inset;
+}
+
+.report-card--wide{ grid-column: 1 / -1; }
+
+.report-card__title{
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.report-card__sub{
+  font-size: .84rem;
+  color: var(--ink-50);
+  margin-bottom: 14px;
+}
+
+/* bar chart */
+.barchart{
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  height: 140px;
+  padding-top: 10px;
+}
+.barchart__col{
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  gap: 8px;
+}
+.barchart__bar{
+  width: 100%;
+  max-width: 44px;
+  height: var(--h);
+  background: linear-gradient(180deg, var(--rust) 0%, var(--rust-dark) 100%);
+  border-radius: 6px 6px 2px 2px;
+}
+.barchart__col span{
+  font-size: .78rem;
+  color: var(--ink-50);
+  font-weight: 600;
+}
+
+/* tag frequency list */
+.taglist{
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.taglist li{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.taglist__count{
+  font-size: .84rem;
+  font-weight: 700;
+  color: var(--ink-50);
+}
+
+/* ---------- Access & security ---------- */
+.security-grid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.security-card{
+  background: var(--paper);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.5) inset;
+  border-left: 4px solid var(--ink-14);
+}
+.security-card--ok{ border-left-color: var(--teal); }
+
+.security-card__label{
+  font-size: .78rem;
+  color: var(--ink-50);
+  margin-bottom: 4px;
+}
+.security-card__value{
+  font-size: 1.1rem;
+  font-weight: 600;
+  font-family: var(--display);
+  margin-bottom: 6px;
+}
+.security-card__sub{
+  font-size: .82rem;
+  color: var(--ink-50);
+  line-height: 1.5;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 760px){
+  .reports-grid{ grid-template-columns: 1fr; }
+  .security-grid{ grid-template-columns: 1fr; }
+  .atable-wrap{ overflow-x: auto; }
+  .atable{ min-width: 620px; }
+}
+
+/* ---------- Role filter (sits beside the search field) ---------- */
+.searchbar{
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+.searchbar .searchbar__field{ flex: 1; margin-bottom: 0; }
+
+.searchbar__select{
+  display: flex;
+  align-items: center;
+  background: var(--paper);
+  border: 1.4px solid transparent;
+  border-radius: 999px;
+  padding: 0 18px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.5) inset;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.searchbar__select:focus-within{
+  border-color: var(--rust);
+  box-shadow: 0 0 0 3px var(--rust-tint);
+}
+.searchbar__select select{
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: .95rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.sr-only{
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 560px){
+  .searchbar{ flex-direction: column; }
+}

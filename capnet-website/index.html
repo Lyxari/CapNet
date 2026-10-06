@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CapNet — Capstone Repository &amp; Indexing Network</title>
+<meta name="description" content="CapNet is a searchable, AI-tagged repository for capstone and thesis projects — built for students, faculty, and administrators.">
+
+<link rel="icon" href="assets/capnet-logo.png" type="image/png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="pre-load">
+
+  <!-- Ambient backdrop texture -->
+  <div class="atmosphere" aria-hidden="true">
+    <div class="atmosphere__grid"></div>
+    <div class="atmosphere__glow"></div>
+  </div>
+
+  <header class="topbar" data-reveal>
+    <div class="topbar__brand">
+      <img src="assets/capnet-logo.png" alt="" class="topbar__mark" width="28" height="28">
+      <span>CapNet</span>
+    </div>
+    <p class="topbar__meta">College of Computer Studies</p>
+  </header>
+
+  <main class="hero">
+
+    <div class="badge" id="badge">
+      <svg class="badge__orbit" viewBox="0 0 240 240" aria-hidden="true">
+        <circle class="badge__orbit-track" cx="120" cy="120" r="112"></circle>
+        <circle class="badge__orbit-dash" cx="120" cy="120" r="112"></circle>
+        <circle class="badge__node badge__node--a" cx="120" cy="8" r="4.5"></circle>
+        <circle class="badge__node badge__node--b" cx="228" cy="150" r="4.5"></circle>
+        <circle class="badge__node badge__node--c" cx="24" cy="176" r="4.5"></circle>
+      </svg>
+      <div class="badge__disc">
+        <img src="assets/capnet-logo.png" alt="CapNet logo: interlocking C and N monogram beneath a graduation cap" class="badge__mark">
+      </div>
+    </div>
+
+    <div class="intro" data-reveal>
+      <h1 class="intro__title">CapNet</h1>
+      <p class="intro__tagline">Capstone Repository &amp; Indexing Network</p>
+      <p class="intro__epigraph"><span>Search</span><span>Tag</span><span>Approve</span><span>Archive</span></p>
+
+      <div class="actions">
+        <button type="button" class="btn btn--ghost" data-open-modal="signin">
+          <span>Sign in</span>
+        </button>
+        <button type="button" class="btn btn--solid" data-open-modal="signup">
+          <span>Sign up</span>
+          <svg viewBox="0 0 16 16" class="btn__arrow" aria-hidden="true"><path d="M2 8H14M14 8L9 3M14 8L9 13" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+
+      <p class="disclaimer">One index for every defended, in-progress, and archived capstone on campus.</p>
+    </div>
+
+  </main>
+
+  <footer class="footer" data-reveal>
+    <p>&copy; 2026 CapNet. Built for students, faculty, and admins.</p>
+  </footer>
+
+  <!-- ============== Sign in modal ============== -->
+  <div class="modal-overlay" id="overlay" hidden>
+
+    <section class="modal" id="modal-signin" role="dialog" aria-modal="true" aria-labelledby="signin-title" hidden>
+      <button type="button" class="modal__close" data-close-modal aria-label="Close dialog">&times;</button>
+      <p class="modal__eyebrow">Welcome back</p>
+      <h2 class="modal__title" id="signin-title">Sign in to CapNet</h2>
+      <p class="modal__sub">Access your saved searches and submissions.</p>
+
+      <form class="form" data-form="signin" novalidate>
+        <label class="field">
+          <span>School email</span>
+          <input type="email" name="email" placeholder="you@tip.edu.ph" required autocomplete="email">
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <input type="password" name="password" placeholder="••••••••" required autocomplete="current-password" minlength="6">
+        </label>
+
+        <button type="submit" class="btn btn--solid btn--block">
+          <span class="btn__label">Sign in</span>
+          <span class="btn__spinner" aria-hidden="true"></span>
+        </button>
+
+        <p class="form__error" role="alert"></p>
+        <p class="form__success" role="status">Signed in — redirecting to your dashboard…</p>
+      </form>
+
+      <p class="modal__switch">New to CapNet? <button type="button" data-switch-modal="signup">Create an account</button></p>
+    </section>
+
+    <section class="modal" id="modal-signup" role="dialog" aria-modal="true" aria-labelledby="signup-title" hidden>
+      <button type="button" class="modal__close" data-close-modal aria-label="Close dialog">&times;</button>
+      <p class="modal__eyebrow">Join CapNet</p>
+      <h2 class="modal__title" id="signup-title">Create your account</h2>
+      <p class="modal__sub">Set up access for browsing, submitting, or reviewing capstones.</p>
+
+      <form class="form" data-form="signup" novalidate>
+        <label class="field">
+          <span>Full name</span>
+          <input type="text" name="name" placeholder="Full name" required autocomplete="name">
+        </label>
+        <label class="field">
+          <span>School email</span>
+          <input type="email" name="email" placeholder="you@tip.edu.ph" required autocomplete="email">
+        </label>
+        <label class="field">
+          <span>Role</span>
+          <select name="role" required>
+            <option value="" disabled selected>Select your role</option>
+            <option value="student">Student</option>
+            <option value="faculty">Faculty / adviser</option>
+            <option value="admin">Admin</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <input type="password" name="password" placeholder="At least 8 characters" required autocomplete="new-password" minlength="8">
+        </label>
+
+        <button type="submit" class="btn btn--solid btn--block">
+          <span class="btn__label">Create account</span>
+          <span class="btn__spinner" aria-hidden="true"></span>
+        </button>
+
+        <p class="form__error" role="alert"></p>
+        <p class="form__success" role="status">Account created — taking you to your dashboard…</p>
+      </form>s
+
+      <p class="modal__switch">Already have an account? <button type="button" data-switch-modal="signin">Sign in</button></p>
+    </section>
+
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="supabase-config.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faculty Dashboard — CapNet</title>
+<meta name="description" content="Review capstone submissions and approve or send them back with notes.">
+
+<link rel="icon" href="assets/capnet-logo.png" type="image/png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="dashboard.css">
+<link rel="stylesheet" href="faculty.css">
+</head>
+<body>
+
+  <div class="atmosphere" aria-hidden="true">
+    <div class="atmosphere__grid"></div>
+    <div class="atmosphere__glow"></div>
+  </div>
+
+  <header class="topbar">
+    <a class="topbar__brand" href="index.html">
+      <img src="assets/capnet-logo.png" alt="" class="topbar__mark" width="28" height="28">
+      <span>CapNet</span>
+    </a>
+
+    <div class="topbar__right">
+      <div class="userchip">
+        <span class="userchip__avatar"><span id="userInitial">P</span></span>
+        <span class="userchip__name" id="userName">Faculty</span>
+      </div>
+      <button type="button" class="btn btn--ghost btn--sm" id="signOutBtn">Sign out</button>
+    </div>
+  </header>
+
+  <main class="dash">
+
+    <section class="dash__intro">
+      <p class="eyebrow">Faculty dashboard</p>
+      <h1>Welcome back, <span id="userFirstName">Professor</span></h1>
+      <p class="dash__sub">Review capstone submissions — approve them for the repository, or send them back with notes.</p>
+    </section>
+
+    <section class="stats" aria-label="Repository review overview">
+      <div class="stat-card stat-card--accent">
+        <p class="stat-card__label">Pending review</p>
+        <p class="stat-card__value" id="statPending">0</p>
+      </div>
+      <div class="stat-card">
+        <p class="stat-card__label">Approved</p>
+        <p class="stat-card__value" id="statApproved">0</p>
+      </div>
+      <div class="stat-card">
+        <p class="stat-card__label">Rejected</p>
+        <p class="stat-card__value" id="statRejected">0</p>
+      </div>
+    </section>
+
+    <section class="searchbar">
+      <label class="searchbar__field">
+        <svg viewBox="0 0 20 20" class="searchbar__icon" aria-hidden="true"><circle cx="9" cy="9" r="6.4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="13.6" y1="13.6" x2="18" y2="18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <input type="text" id="searchInput" placeholder="Search by title, tag, or author" autocomplete="off">
+      </label>
+
+      <div class="filterpicker" id="tagFilterPicker">
+        <button type="button" class="filterpicker__toggle" id="tagFilterToggle" aria-haspopup="listbox" aria-expanded="false">
+          <span id="tagFilterLabel">All tags</span>
+          <svg class="filterpicker__chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="filterpicker__panel" id="tagFilterPanel" role="listbox" aria-multiselectable="true" hidden></div>
+      </div>
+
+      <label class="searchbar__select">
+        <span class="sr-only">Filter by year</span>
+        <select id="yearFilter">
+          <option value="all">All years</option>
+        </select>
+      </label>
+    </section>
+
+    <section class="fsection">
+      <div class="fsection__head">
+        <h2 class="fsection__title">Pending review</h2>
+        <p class="fsection__count"><span id="pendingCount">0</span> waiting</p>
+      </div>
+
+      <div class="qlist" id="pendingList"></div>
+
+      <p class="qlist__empty" id="pendingEmpty" hidden>Nothing matches your search right now.</p>
+    </section>
+
+    <section class="fsection">
+      <div class="fsection__head">
+        <h2 class="fsection__title">Recently reviewed</h2>
+        <p class="fsection__count"><span id="reviewedCount">0</span> total</p>
+      </div>
+
+      <div class="qlist" id="reviewedList"></div>
+
+      <p class="qlist__empty" id="reviewedEmpty" hidden>Nothing matches your search right now.</p>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <p>&copy; 2026 CapNet. Built for students, faculty, and admins.</p>
+  </footer>
+
+  <!-- ============== Detail modal ============== -->
+  <div class="modal-overlay" id="overlay" hidden>
+    <section class="modal modal--detail" id="detailModal" role="dialog" aria-modal="true" aria-labelledby="detail-title" hidden>
+      <button type="button" class="modal__close" id="detailClose" aria-label="Close dialog">&times;</button>
+
+      <div class="detail__top">
+        <h2 class="detail__title" id="detail-title"></h2>
+        <span class="detail__status" id="detailStatus"></span>
+      </div>
+      <p class="detail__meta" id="detailMeta"></p>
+      <div class="detail__tags" id="detailTags"></div>
+
+      <div class="detail__block">
+        <p class="detail__label">Abstract</p>
+        <p class="detail__text" id="detailAbstract"></p>
+      </div>
+
+      <div class="detail__block">
+        <p class="detail__label">Authors and adviser</p>
+        <table class="detail__table">
+          <tr><td>Authors</td><td id="detailAuthors"></td></tr>
+          <tr><td>Adviser</td><td id="detailAdviser"></td></tr>
+        </table>
+      </div>
+
+
+      <div class="detail__block" id="detailFeedbackBlock" hidden>
+        <p class="detail__label">Your review note</p>
+        <p class="detail__text" id="detailFeedback"></p>
+      </div>
+
+      <div class="detail__actions">
+        <button type="button" class="btn btn--ghost btn--sm" id="detailDownloadBtn">Download PDF</button>
+      </div>
+
+      <div class="qcard__actions" id="detailReviewActions" style="margin-top:14px;" hidden>
+        <button type="button" class="btn btn--dark btn--sm" id="detailApproveBtn">Approve</button>
+        <button type="button" class="btn btn--ghost btn--sm" id="detailDenyBtn">Deny with reason</button>
+      </div>
+
+      <div class="qcard__revise-panel" id="detailDenyPanel" hidden>
+        <label class="revise-field">
+          <span>Why is this being sent back?</span>
+          <textarea id="detailDenyNote" rows="3" placeholder="e.g. Chapter 3 methodology needs more detail before this can be indexed."></textarea>
+        </label>
+        <div class="qcard__revise-actions">
+          <button type="button" class="btn btn--ghost btn--sm" id="detailDenyCancel">Cancel</button>
+          <button type="button" class="btn btn--dark btn--sm" id="detailDenySend">Send decision</button>
+        </div>
+      </div>
+
+      <p class="detail__note" id="detailNote" role="status"></p>
+    </section>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="supabase-config.js"></script>
+<script src="faculty.js"></script>
+</body>
+</html>

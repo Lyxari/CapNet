@@ -1,0 +1,386 @@
+/* ============================================================
+   CapNet — faculty dashboard
+   Extends dashboard.css with the approval-queue and
+   revision/limitation-tracking components.
+   ============================================================ */
+
+/* A single leftover stat card (e.g. once Advisees/Drafts are
+   removed) shouldn't stretch across the full 3-column grid. */
+.stats--single{
+  grid-template-columns: minmax(200px, 320px);
+}
+
+.fsection{ margin-bottom: 34px; }
+
+.fsection__head{
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.fsection__title{
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.fsection__count{
+  font-size: .82rem;
+  color: var(--ink-50);
+  white-space: nowrap;
+}
+
+.qlist{
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.qlist__empty{
+  text-align: center;
+  padding: 30px 20px;
+  background: var(--paper-dim);
+  border-radius: var(--radius-md);
+  border: 1.4px dashed var(--ink-14);
+  color: var(--ink-50);
+  font-size: .9rem;
+}
+
+/* ---------- Upload CTA ---------- */
+.upload-cta{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: var(--paper);
+  border-radius: var(--radius-md);
+  padding: 22px 24px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.5) inset;
+}
+.upload-cta__title{ font-weight: 600; margin-bottom: 4px; }
+.upload-cta__sub{ font-size: .86rem; color: var(--ink-50); max-width: 460px; line-height: 1.55; }
+
+/* ---------- Uploaded capstone card ---------- */
+.ucard{
+  background: var(--paper);
+  border-radius: var(--radius-md);
+  padding: 20px 22px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.5) inset;
+  transition: opacity .35s var(--ease-out), transform .35s var(--ease-out);
+}
+.ucard.is-leaving{ opacity: 0; transform: translateX(12px) scale(.98); }
+
+.ucard__top{
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+.ucard__title{ font-size: 1.02rem; font-weight: 600; line-height: 1.35; margin-bottom: 4px; }
+.ucard__meta{ font-size: .84rem; color: var(--ink-50); }
+.ucard__tags{ display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 16px; }
+.ucard__actions{ display: flex; gap: 8px; }
+
+.pill--draft{ background: var(--indigo-tint); color: var(--indigo); }
+.pill--published{ background: var(--teal-tint); color: var(--teal); }
+
+/* ---------- Pending approval card ---------- */
+.qcard{
+  background: var(--paper);
+  border-radius: var(--radius-md);
+  padding: 20px 22px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.5) inset;
+  transition: opacity .35s var(--ease-out), transform .35s var(--ease-out);
+}
+
+.qcard.is-leaving{
+  opacity: 0;
+  transform: translateX(12px) scale(.98);
+}
+
+.qcard__top{
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.qcard__title{
+  font-size: 1.02rem;
+  font-weight: 600;
+  line-height: 1.35;
+  margin-bottom: 4px;
+}
+
+.qcard__meta{
+  font-size: .84rem;
+  color: var(--ink-50);
+}
+
+.qcard__tags{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 16px;
+}
+
+.qcard__actions{
+  display: flex;
+  gap: 8px;
+}
+.qcard__actions[hidden]{ display: none; }
+
+.qcard__revise-panel{
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1.4px solid var(--ink-08);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.qcard__revise-panel[hidden]{ display: none; }
+
+.revise-field{
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--ink-70);
+}
+
+.revise-field textarea{
+  font-family: inherit;
+  font-size: .9rem;
+  font-weight: 400;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1.4px solid var(--ink-14);
+  background: #fff;
+  color: var(--ink);
+  resize: vertical;
+  min-height: 70px;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.revise-field textarea:focus{
+  outline: none;
+  border-color: var(--rust);
+  box-shadow: 0 0 0 3px rgba(176,58,20,.14);
+}
+
+.qcard__revise-actions{
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ---------- Status pills ---------- */
+.pill{
+  flex-shrink: 0;
+  font-size: .74rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.pill--pending{ background: #FBEFDD; color: #8A5A16; }
+.pill--progress{ background: #E6F1FB; color: #185FA5; }
+.pill--resolved{ background: var(--teal-tint); color: var(--teal); }
+.pill--approved{ background: var(--teal-tint); color: var(--teal); }
+.pill--revision{ background: var(--rust-tint); color: var(--rust-dark); }
+
+/* ---------- Dark button variant (used inside queue cards) ---------- */
+.btn--dark{
+  background: var(--ink);
+  color: var(--paper);
+}
+.btn--dark:hover{ background: #2b2c2f; transform: translateY(-1px); }
+
+/* ---------- Revision/limitation tracking card ---------- */
+.tcard{
+  background: var(--paper);
+  border-radius: var(--radius-md);
+  padding: 20px 22px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.5) inset;
+}
+
+.tcard__top{
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.tcard__title{
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+.tcard__meta{
+  font-size: .84rem;
+  color: var(--ink-50);
+  margin-bottom: 12px;
+}
+
+.tcard__list{
+  margin: 0 0 16px;
+  padding-left: 18px;
+  font-size: .9rem;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+/* ---------- Toast confirmation ---------- */
+.ftoast{
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: .86rem;
+  font-weight: 600;
+  padding: 13px 22px;
+  border-radius: 999px;
+  box-shadow: 0 16px 34px -14px rgba(23,24,26,.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s var(--ease-out), transform .3s var(--ease-out);
+  z-index: 20;
+}
+.ftoast.is-visible{
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ---------- Upload modal ---------- */
+.modal--upload{ max-width: 560px; text-align: left; }
+
+.dropzone{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  padding: 36px 20px;
+  margin-top: 16px;
+  border-radius: var(--radius-md);
+  border: 1.6px dashed var(--ink-30);
+  background: var(--paper-dim);
+  cursor: pointer;
+  transition: border-color .2s ease, background-color .2s ease;
+}
+.dropzone:hover, .dropzone.is-dragover{
+  border-color: var(--rust);
+  background: var(--rust-tint);
+}
+.dropzone__icon{ font-size: 1.6rem; color: var(--ink-50); }
+.dropzone__title{ font-weight: 600; font-size: .95rem; }
+.dropzone__sub{ font-size: .78rem; color: var(--ink-50); }
+
+.dropzone__file{
+  margin-top: 12px;
+  font-size: .86rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--paper-dim);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+
+.analyzing{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: var(--radius-md);
+  background: var(--paper-dim);
+  font-size: .88rem;
+  color: var(--ink-70);
+}
+.analyzing__spinner{
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2.4px solid var(--ink-14);
+  border-top-color: var(--rust);
+  animation: spin .8s linear infinite;
+}
+@keyframes spin{ to{ transform: rotate(360deg); } }
+
+.upload-banner{
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--teal);
+  background: var(--teal-tint);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin: 16px 0 18px;
+}
+
+.field{
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--ink-70);
+  margin-bottom: 14px;
+}
+.field em{ font-weight: 400; font-style: normal; color: var(--ink-50); }
+.field__hint{ font-weight: 400; font-size: .78rem; color: var(--ink-50); margin-top: -2px; }
+
+.field input, .field textarea{
+  font-family: inherit;
+  font-size: .9rem;
+  font-weight: 400;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1.4px solid var(--ink-14);
+  background: #fff;
+  color: var(--ink);
+  resize: vertical;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.field input:focus, .field textarea:focus{
+  outline: none;
+  border-color: var(--rust);
+  box-shadow: 0 0 0 3px rgba(176,58,20,.14);
+}
+
+.field-row{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.field-row .field{ margin-bottom: 0; }
+
+#uploadForm .detail__actions{ margin-top: 4px; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 640px){
+  .qcard__top{ flex-direction: column; gap: 8px; }
+  .qcard__actions{ flex-direction: column; }
+  .qcard__actions .btn{ width: 100%; }
+  .qcard__revise-actions{ flex-direction: column; }
+  .qcard__revise-actions .btn{ width: 100%; }
+  .tcard__top{ flex-direction: column; gap: 6px; }
+  .ucard__top{ flex-direction: column; gap: 8px; }
+  .ucard__actions{ flex-direction: column; }
+  .ucard__actions .btn{ width: 100%; }
+  .upload-cta{ flex-direction: column; align-items: flex-start; }
+  .upload-cta .btn{ width: 100%; }
+  .field-row{ grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .qcard, .ucard, .ftoast, .analyzing__spinner{ transition-duration: .01ms !important; animation-duration: none; }
+}

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — CapNet</title>
+<meta name="description" content="Search and browse indexed capstone projects on CapNet.">
+
+<link rel="icon" href="assets/capnet-logo.png" type="image/png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="dashboard.css">
+<link rel="stylesheet" href="faculty.css">
+</head>
+<body>
+
+  <div class="atmosphere" aria-hidden="true">
+    <div class="atmosphere__grid"></div>
+    <div class="atmosphere__glow"></div>
+  </div>
+
+  <header class="topbar">
+    <a class="topbar__brand" href="index.html">
+      <img src="assets/capnet-logo.png" alt="" class="topbar__mark" width="28" height="28">
+      <span>CapNet</span>
+    </a>
+
+    <div class="topbar__right">
+      <div class="userchip">
+        <span class="userchip__avatar"><span id="userInitial">S</span></span>
+        <span class="userchip__name" id="userName">Student</span>
+      </div>
+      <button type="button" class="btn btn--ghost btn--sm" id="signOutBtn">Sign out</button>
+    </div>
+  </header>
+
+  <main class="dash">
+
+    <section class="dash__intro">
+      <p class="eyebrow">Student dashboard</p>
+      <h1>Welcome back, <span id="userFirstName">Student</span></h1>
+      <p class="dash__sub">Search the repository, or upload your own completed capstone for your adviser to review.</p>
+    </section>
+
+    <section class="stats" aria-label="Repository overview">
+      <div class="stat-card">
+        <p class="stat-card__label">Indexed capstones</p>
+        <p class="stat-card__value" id="statTotal">0</p>
+      </div>
+      <div class="stat-card">
+        <p class="stat-card__label">Added this year</p>
+        <p class="stat-card__value" id="statThisYear">0</p>
+      </div>
+      <div class="stat-card stat-card--accent">
+        <p class="stat-card__label">Your submissions</p>
+        <p class="stat-card__value" id="statMine">0</p>
+      </div>
+    </section>
+
+    <section class="fsection">
+      <div class="fsection__head">
+        <h2 class="fsection__title">Upload a capstone</h2>
+      </div>
+
+      <div class="upload-cta">
+        <div class="upload-cta__copy">
+          <p class="upload-cta__title">Submit your completed project for review</p>
+        </div>
+        <button type="button" class="btn btn--solid" id="openUploadBtn">
+          <span aria-hidden="true">＋</span> Upload capstone PDF
+        </button>
+      </div>
+    </section>
+
+    <section class="fsection">
+      <div class="fsection__head">
+        <h2 class="fsection__title">Your submissions</h2>
+        <p class="fsection__count"><span id="uploadedCount">0</span> total</p>
+      </div>
+
+      <div class="qlist" id="uploadedList"></div>
+
+      <p class="qlist__empty" id="uploadedEmpty" hidden>Nothing submitted yet — projects you upload will show up here.</p>
+    </section>
+
+    <section class="fsection">
+      <div class="fsection__head">
+        <h2 class="fsection__title">Browse the repository</h2>
+      </div>
+
+
+    <section class="searchbar">
+      <label class="searchbar__field">
+        <svg viewBox="0 0 20 20" class="searchbar__icon" aria-hidden="true"><circle cx="9" cy="9" r="6.4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="13.6" y1="13.6" x2="18" y2="18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <input type="text" id="searchInput" placeholder="Search by title, tag, or program" autocomplete="off">
+      </label>
+
+      <div class="filterpicker" id="tagFilterPicker">
+        <button type="button" class="filterpicker__toggle" id="tagFilterToggle" aria-haspopup="listbox" aria-expanded="false">
+          <span id="tagFilterLabel">All tags</span>
+          <svg class="filterpicker__chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="filterpicker__panel" id="tagFilterPanel" role="listbox" aria-multiselectable="true" hidden></div>
+      </div>
+
+      <label class="searchbar__select">
+        <span class="sr-only">Filter by year</span>
+        <select id="yearFilter">
+          <option value="all">All years</option>
+        </select>
+      </label>
+    </section>
+
+    <p class="results__label" id="resultsLabel">Loading capstones…</p>
+
+    <section class="results" id="results"></section>
+
+    <div class="empty-state" id="emptyState" hidden>
+      <p class="empty-state__title">No capstones match that search</p>
+      <p class="empty-state__sub">Try a different keyword, or clear the tag filter above.</p>
+      <button type="button" class="btn btn--ghost btn--sm" id="clearFiltersBtn">Clear filters</button>
+    </div>
+
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <p>&copy; 2026 CapNet. Built for students, faculty, and admins.</p>
+  </footer>
+
+  <!-- ============== Detail modal ============== -->
+  <div class="modal-overlay" id="overlay" hidden>
+    <section class="modal modal--detail" id="detailModal" role="dialog" aria-modal="true" aria-labelledby="detail-title" hidden>
+      <button type="button" class="modal__close" id="detailClose" aria-label="Close dialog">&times;</button>
+
+      <div class="detail__top">
+        <h2 class="detail__title" id="detail-title"></h2>
+        <span class="detail__status" id="detailStatus"></span>
+      </div>
+      <p class="detail__meta" id="detailMeta"></p>
+      <div class="detail__tags" id="detailTags"></div>
+
+      <div class="detail__block">
+        <p class="detail__label">Abstract</p>
+        <p class="detail__text" id="detailAbstract"></p>
+      </div>
+
+      <div class="detail__block">
+        <p class="detail__label">Authors and adviser</p>
+        <table class="detail__table">
+          <tr><td>Authors</td><td id="detailAuthors"></td></tr>
+          <tr><td>Adviser</td><td id="detailAdviser"></td></tr>
+        </table>
+      </div>
+
+
+      <div class="detail__block" id="detailFeedbackBlock" hidden>
+        <p class="detail__label">Reviewer feedback</p>
+        <p class="detail__text" id="detailFeedback"></p>
+      </div>
+
+      <div class="detail__actions">
+        <button type="button" class="btn btn--solid btn--sm" id="detailDownloadBtn">Download PDF</button>
+      </div>
+      <p class="detail__note" id="detailNote" role="status"></p>
+    </section>
+  </div>
+
+  <!-- ============== Upload capstone modal ============== -->
+  <div class="modal-overlay" id="uploadOverlay" hidden>
+    <section class="modal modal--upload" id="uploadModal" role="dialog" aria-modal="true" aria-labelledby="upload-title" hidden>
+      <button type="button" class="modal__close" id="uploadClose" aria-label="Close dialog">&times;</button>
+
+      <h2 class="detail__title" id="upload-title">Upload capstone</h2>
+      <p class="detail__meta" id="uploadStep">Step 1 of 2 &middot; Select the manuscript</p>
+
+      <!-- Step 1: file drop -->
+      <div id="uploadStepFile">
+        <label class="dropzone" id="dropzone" for="fileInput">
+          <input type="file" id="fileInput" accept="application/pdf" hidden>
+          <span class="dropzone__icon" aria-hidden="true">⇪</span>
+          <span class="dropzone__title">Drag and drop the final PDF here</span>
+          <span class="dropzone__sub">or click to browse &middot; PDF up to 25MB</span>
+        </label>
+        <p class="dropzone__file" id="dropzoneFile" hidden></p>
+      </div>
+
+      <!-- Step 2: AI Extraction in Progress -->
+      <div id="uploadStepProcessing" class="ai-processing" hidden>
+        <div class="ai-processing__spinner"></div>
+        <div class="ai-processing__text">
+          <h3 class="ai-processing__title">Extracting manuscript with AI…</h3>
+          <p class="ai-processing__sub">Reading title, authors, year, and abstract</p>
+        </div>
+      </div>
+
+      <!-- Step 3: Extracted Metadata & Generated File Preview -->
+      <div id="uploadStepExtracted" class="ai-extracted" hidden>
+        <div class="ai-file-badge">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          <div class="ai-file-badge__info">
+            <strong id="aiFileName">capstone-extracted-summary.pdf</strong>
+            <span>Generated summary file ready</span>
+          </div>
+          <button type="button" class="btn btn--ghost btn--sm" id="downloadAiSummaryBtn" title="Download metadata file">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v9m0 0l-3-3m3 3l3-3M2 13h12"/></svg>
+            Download File
+          </button>
+        </div>
+
+        <div class="ai-preview-card">
+          <div class="ai-preview-item">
+            <span class="ai-preview-item__label">Title</span>
+            <p class="ai-preview-item__val" id="aiExtractedTitle">—</p>
+          </div>
+          <div class="ai-preview-grid">
+            <div class="ai-preview-item">
+              <span class="ai-preview-item__label">Authors</span>
+              <p class="ai-preview-item__val" id="aiExtractedAuthors">—</p>
+            </div>
+            <div class="ai-preview-item">
+              <span class="ai-preview-item__label">Year</span>
+              <p class="ai-preview-item__val" id="aiExtractedDate">—</p>
+            </div>
+          </div>
+          <div class="ai-preview-item">
+            <span class="ai-preview-item__label">Abstract</span>
+            <p class="ai-preview-item__val ai-preview-item__abstract" id="aiExtractedAbstract">—</p>
+          </div>
+        </div>
+
+        <!-- Manual tag picker -->
+        <div class="ai-tag-picker">
+          <p class="ai-tag-picker__label">Select tags <span class="ai-tag-picker__hint">(choose all that apply)</span></p>
+          <div class="ai-tag-picker__grid" id="uploadTagGrid"></div>
+        </div>
+
+        <div class="detail__actions">
+          <button type="button" class="btn btn--ghost btn--sm" id="uploadCancelBtn">Cancel</button>
+          <button type="button" class="btn btn--solid btn--sm" id="submitExtractedForReviewBtn">Submit for Review</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="supabase-config.js"></script>
+<script src="dashboard.js"></script>
+</body>
+</html>
