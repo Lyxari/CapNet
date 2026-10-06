@@ -3,7 +3,6 @@
 
   const db = window.capnetDB;
   const BUCKET = "capstone-pdfs";
-  const API_URL = 'https://capnet-backend-v708.onrender.com';
   // Predefined tag options for the upload form's tag picker. Capstones can
   // still carry tags outside this list (e.g. from older uploads) — the
   // picker just adds those in dynamically too, see renderTagPickerOptions().
