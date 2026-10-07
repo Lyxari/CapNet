@@ -3,7 +3,7 @@
 
   const db = window.capnetDB;
   const BUCKET = "capstone-pdfs";
- const API_URL = 'https://capnet-i3gn.onrender.com';
+  const API_URL = 'https://capnet-i3gn.onrender.com';
   // Predefined tag options for the upload form's tag picker. Capstones can
   // still carry tags outside this list (e.g. from older uploads) — the
   // picker just adds those in dynamically too, see renderTagPickerOptions().
@@ -689,7 +689,7 @@
         formData.append("pdf", file);
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s for AI processing
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s for Render wake-up and AI processing
 
         const response = await fetch(API_URL + "/api/nlp/process-capstone", {
           method: "POST",
