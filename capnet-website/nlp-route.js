@@ -20,7 +20,7 @@ const upload = multer({ limits: { fileSize: 25 * 1024 * 1024 } });
  *   GEMINI_API_KEY — your Google AI Studio API key
  */
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_MODEL = 'gemini-3.8-flash';
 
 async function callGemini(pdfText) {
   const apiKey = process.env.GEMINI_API_KEY;
