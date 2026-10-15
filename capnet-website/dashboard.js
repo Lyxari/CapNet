@@ -689,7 +689,7 @@
         formData.append("pdf", file);
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s for Render wake-up and AI processing
+        const timeoutId = setTimeout(() => controller.abort(), 180000); // 60s for Render wake-up and AI processing
 
         const response = await fetch(API_URL + "/api/nlp/process-capstone", {
           method: "POST",
