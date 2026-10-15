@@ -71,6 +71,15 @@
      needed. Converts "First Middle Last" into "Last, F. M." and
      joins multiple authors with commas + an ampersand before the
      last one, per APA 7th edition.
+
+     Known limits (kept editable on purpose, so these are easy to
+     hand-fix rather than silently wrong):
+       - Assumes Western given-name-then-surname order.
+       - A short list of common surname particles (dela, de los,
+         san, etc.) catches compound Filipino/Spanish surnames like
+         "Dela Cruz" or "Santa Maria", but very unusual or
+         multi-part surnames may still need a manual tweak.
+       - Single-word names are left alone (nothing safe to split).
      ============================================================ */
 
   const SURNAME_PARTICLES = [
@@ -86,10 +95,12 @@
     let name = rawName.trim();
     if (!name) return "";
 
+    // Already looks APA-formatted ("Surname, F." or "Surname, F. M.") — leave it alone.
     if (/^[\p{L}'’.-]+,\s*(?:[\p{L}]\.\s*){1,4}(?:,\s*(?:Jr\.?|Sr\.?|II|III|IV))?$/u.test(name)) {
       return name;
     }
 
+    // Pull off a trailing suffix (Jr., III, etc.) to reattach after formatting.
     let suffix = "";
     const suffixMatch = name.match(/,?\s+(Jr\.?|Sr\.?|II|III|IV)$/i);
     if (suffixMatch) {
@@ -98,8 +109,11 @@
     }
 
     const words = name.split(/\s+/).filter(Boolean);
-    if (words.length < 2) return name;
+    if (words.length < 2) return name; // just one word — nothing safe to split
 
+    // Check whether the word(s) right before the last word form a
+    // known surname particle (checks two-word particles first, e.g.
+    // "de la", before falling back to a one-word particle like "dela").
     let surnameWords = [words[words.length - 1]];
     let firstNameWords = words.slice(0, -1);
 
@@ -174,7 +188,7 @@
     });
 
     /* ================================================================
-       Browse the public repository
+       Browse the public repository (unchanged behavior)
        ================================================================ */
 
     const searchInput = document.getElementById("searchInput");
@@ -214,7 +228,15 @@
     }
 
     function renderTagFilterOptions() {
+      // Pulled from the master TAG_OPTIONS list (not from tags currently
+      // present on published capstones), so every official tag shows up
+      // here even before any capstone has been tagged with it — and any
+      // stray junk tag that isn't part of the official taxonomy (e.g.
+      // leftover test data) never appears.
       const sortedTags = Array.from(TAG_OPTIONS).sort((a, b) => a.localeCompare(b));
+
+      // Drop any previously active tag that's no longer part of the
+      // official tag list.
       activeTags.forEach((t) => { if (!sortedTags.includes(t)) activeTags.delete(t); });
 
       chipsContainer.innerHTML =
@@ -339,7 +361,7 @@
     });
 
     /* ================================================================
-       Your submissions
+       Your submissions (real data — upload, edit, delete, resubmit)
        ================================================================ */
 
     const uploadedCount = document.getElementById("uploadedCount");
@@ -551,7 +573,10 @@
       return base.replace(/\b\w/g, (c) => c.toUpperCase());
     }
 
-    /* Generate a PDF summary using jsPDF — Adviser and Program removed, using live selected tags */
+    /* (Client-side NLP parser removed — extraction is now handled by
+       Google Gemini AI on the server via POST /api/nlp/process-capstone) */
+
+    /* Generate a PDF summary using jsPDF instead of plain text */
     function downloadSummaryPdf(meta, filename) {
       if (!window.jspdf || !window.jspdf.jsPDF) {
         showToast("PDF library not loaded yet. Please try again in a moment.");
@@ -563,6 +588,17 @@
       const margin = 20;
       const usable = pw - margin * 2;
       let y = 25;
+
+      function addText(text, size, style, maxW, lineH) {
+        doc.setFontSize(size);
+        doc.setFont("helvetica", style || "normal");
+        const split = doc.splitTextToSize(String(text || "—"), maxW || usable);
+        split.forEach((line) => {
+          if (y > 270) { doc.addPage(); y = 20; }
+          doc.text(line, margin, y);
+          y += (lineH || size * 0.45);
+        });
+      }
 
       function addField(label, value) {
         doc.setFontSize(9);
@@ -600,7 +636,9 @@
 
       addField("Title", meta.title);
       addField("Authors", meta.authors);
+      addField("Adviser", meta.adviser);
       addField("Year", String(meta.year));
+      addField("Program", meta.program);
       addField("Tags", (meta.tags || []).join(", ") || "None detected");
 
       // Abstract
@@ -624,13 +662,7 @@
     if (downloadAiSummaryBtn) {
       downloadAiSummaryBtn.addEventListener("click", () => {
         if (!extractedData) return;
-        
-        // Dynamically bundle the live tags checked in the picker
-        const currentMeta = Object.assign({}, extractedData, { 
-          tags: Array.from(selectedUploadTags) 
-        });
-
-        const savedName = downloadSummaryPdf(currentMeta, selectedFile ? selectedFile.name : "capstone.pdf");
+        const savedName = downloadSummaryPdf(extractedData, selectedFile ? selectedFile.name : "capstone.pdf");
         showToast("PDF summary downloaded: " + savedName);
       });
     }
@@ -651,12 +683,13 @@
 
       let parsedResult = null;
 
+      // Send the PDF to the Gemini-powered backend for AI extraction
       try {
         const formData = new FormData();
         formData.append("pdf", file);
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 180000); // 3-minute timeout for Render wake-up
+        const timeoutId = setTimeout(() => controller.abort(), 180000); // 60s for Render wake-up and AI processing
 
         const response = await fetch(API_URL + "/api/nlp/process-capstone", {
           method: "POST",
@@ -680,12 +713,13 @@
           year: r.year || null,
           program: r.program || "",
           abstract: r.abstract || "",
-          tags: [],         
+          tags: [],         // Tags are selected manually by the student
         };
       } catch (err) {
         console.error("Gemini AI extraction failed:", err);
         showToast("AI extraction failed: " + err.message);
 
+        // Minimal fallback — just fill in what we can from the filename
         parsedResult = {
           title: titleCaseFromFilename(file.name),
           authors: "",
@@ -699,9 +733,11 @@
 
       extractedData = parsedResult;
 
+      // Prepare the generated filename for the PDF summary
       const baseName = file.name.replace(/\.pdf$/i, "").replace(/\s+/g, "_");
       generatedFileName = `${baseName}_extracted_summary.pdf`;
 
+      // Update UI preview
       if (aiExtractedTitle) aiExtractedTitle.textContent = extractedData.title || "—";
       if (aiExtractedAuthors) aiExtractedAuthors.textContent = extractedData.authors || "—";
       if (aiExtractedAdviser) aiExtractedAdviser.textContent = extractedData.adviser || "—";
@@ -710,6 +746,7 @@
       if (aiExtractedAbstract) aiExtractedAbstract.textContent = extractedData.abstract || "—";
       if (aiFileName) aiFileName.textContent = generatedFileName;
 
+      // Render the tag picker so the student can select tags manually
       selectedUploadTags.clear();
       renderUploadTagPicker();
 
@@ -743,6 +780,9 @@
         try {
           const filePath = await uploadPdfFile();
 
+          // Submissions start with status 'Pending' so the teacher can review and approve it.
+          // If approved by the teacher, it is marked 'Approved' and published to the database repository!
+          // Use the manually-selected tags from the tag picker
           const payload = {
             title: extractedData.title,
             authors: extractedData.authors,
@@ -773,7 +813,8 @@
     }
 
     /* ================================================================
-       Detail modal
+       Detail modal — shared by both public browse results and your
+       own submissions, so it needs to look items up in either list.
        ================================================================ */
 
     const overlay = document.getElementById("overlay");
@@ -823,6 +864,8 @@
         tagWrap.appendChild(span);
       });
 
+
+
       overlay.hidden = false;
       void overlay.offsetWidth;
       overlay.classList.add("is-open");
@@ -868,10 +911,10 @@
       window.open(data.signedUrl, "_blank");
     });
 
-    await Promise.all([loadPublicCapstones(), loadMySubmissions()]);
-    applyFilters();
-    renderMySubmissions();
-  }
+ await Promise.all([loadPublicCapstones(), loadMySubmissions()]);
+  applyFilters();
+  renderMySubmissions();
+}
 
-  init();
+init();
 })();
