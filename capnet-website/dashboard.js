@@ -825,7 +825,6 @@
       document.getElementById("detailMeta").textContent = meta;
       document.getElementById("detailAbstract").textContent = item.abstract || "No abstract provided.";
       document.getElementById("detailAuthors").textContent = item.authors || "—";
-      document.getElementById("detailAdviser").textContent = item.adviser || "—";
       document.getElementById("detailNote").textContent = "";
 
       const statusEl = document.getElementById("detailStatus");
@@ -882,20 +881,20 @@
     });
 
     document.getElementById("detailDownloadBtn").addEventListener("click", () => {
-      const noteEl = document.getElementById("detailNote");
-      if (!openItem) {
-        noteEl.textContent = "No data available.";
-        return;
-      }
-      
-      noteEl.textContent = "Generating extracted PDF...";
-      
-      const safeTitle = (openItem.title || "capstone").substring(0, 40).replace(/[^a-zA-Z0-9]/g, "_");
-      const savedName = downloadSummaryPdf(openItem, safeTitle + ".pdf");
-      
-      showToast("Extracted PDF downloaded: " + savedName);
-      noteEl.textContent = "";
-    });
+  const noteEl = document.getElementById("detailNote");
+  if (!openItem) {
+    if (noteEl) noteEl.textContent = "No data available.";
+    return;
+  }
+  
+  if (noteEl) noteEl.textContent = "Generating extracted PDF...";
+  
+  const safeTitle = (openItem.title || "capstone").substring(0, 40).replace(/[^a-zA-Z0-9]/g, "_");
+  const savedName = downloadSummaryPdf(openItem, safeTitle + ".pdf");
+  
+  showToast("Extracted PDF downloaded: " + savedName);
+  if (noteEl) noteEl.textContent = "";
+});
 
  await Promise.all([loadPublicCapstones(), loadMySubmissions()]);
   applyFilters();
