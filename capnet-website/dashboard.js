@@ -881,20 +881,20 @@
       if (e.target === overlay) closeDetail();
     });
 
-    document.getElementById("detailDownloadBtn").addEventListener("click", async () => {
+    document.getElementById("detailDownloadBtn").addEventListener("click", () => {
       const noteEl = document.getElementById("detailNote");
-      if (!openItem || !openItem.file_path) {
-        noteEl.textContent = "No file is attached to this record.";
+      if (!openItem) {
+        noteEl.textContent = "No data available.";
         return;
       }
-      noteEl.textContent = "Preparing download…";
-      const { data, error } = await db.storage.from(BUCKET).createSignedUrl(openItem.file_path, 60);
-      if (error || !data) {
-        noteEl.textContent = "Couldn't generate a download link.";
-        return;
-      }
+      
+      noteEl.textContent = "Generating extracted PDF...";
+      
+      const safeTitle = (openItem.title || "capstone").substring(0, 40).replace(/[^a-zA-Z0-9]/g, "_");
+      const savedName = downloadSummaryPdf(openItem, safeTitle + ".pdf");
+      
+      showToast("Extracted PDF downloaded: " + savedName);
       noteEl.textContent = "";
-      window.open(data.signedUrl, "_blank");
     });
 
  await Promise.all([loadPublicCapstones(), loadMySubmissions()]);
