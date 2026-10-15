@@ -4,7 +4,9 @@
   const db = window.capnetDB;
   const BUCKET = "capstone-pdfs";
   const API_URL = 'https://capnet-i3gn.onrender.com';
-  
+  // Predefined tag options for the upload form's tag picker. Capstones can
+  // still carry tags outside this list (e.g. from older uploads) — the
+  // picker just adds those in dynamically too, see renderTagPickerOptions().
   const TAG_OPTIONS = [
     "Mobile App", "Web App", "Desktop App", "IoT", "Embedded Systems",
     "Artificial Intelligence", "Machine Learning", "Computer Vision",
@@ -18,6 +20,7 @@
   let sessionUser = null;
 
   /* ---------------- auth guard (real Supabase session) ---------------- */
+
   async function requireStudentOrFaculty() {
     const { data: { user } } = await db.auth.getUser();
 
@@ -64,8 +67,21 @@
   const tagClasses = ["tag--purple", "tag--teal", "tag--rust", "tag--pink", "tag--indigo"];
 
   /* ============================================================
-     APA-style author formatting
+     APA-style author formatting — plain string parsing, no AI
+     needed. Converts "First Middle Last" into "Last, F. M." and
+     joins multiple authors with commas + an ampersand before the
+     last one, per APA 7th edition.
+
+     Known limits (kept editable on purpose, so these are easy to
+     hand-fix rather than silently wrong):
+       - Assumes Western given-name-then-surname order.
+       - A short list of common surname particles (dela, de los,
+         san, etc.) catches compound Filipino/Spanish surnames like
+         "Dela Cruz" or "Santa Maria", but very unusual or
+         multi-part surnames may still need a manual tweak.
+       - Single-word names are left alone (nothing safe to split).
      ============================================================ */
+
   const SURNAME_PARTICLES = [
     "de los", "de la", "de las",
     "dela", "delos", "delas",
@@ -79,10 +95,12 @@
     let name = rawName.trim();
     if (!name) return "";
 
+    // Already looks APA-formatted ("Surname, F." or "Surname, F. M.") — leave it alone.
     if (/^[\p{L}'’.-]+,\s*(?:[\p{L}]\.\s*){1,4}(?:,\s*(?:Jr\.?|Sr\.?|II|III|IV))?$/u.test(name)) {
       return name;
     }
 
+    // Pull off a trailing suffix (Jr., III, etc.) to reattach after formatting.
     let suffix = "";
     const suffixMatch = name.match(/,?\s+(Jr\.?|Sr\.?|II|III|IV)$/i);
     if (suffixMatch) {
@@ -91,8 +109,11 @@
     }
 
     const words = name.split(/\s+/).filter(Boolean);
-    if (words.length < 2) return name; 
+    if (words.length < 2) return name; // just one word — nothing safe to split
 
+    // Check whether the word(s) right before the last word form a
+    // known surname particle (checks two-word particles first, e.g.
+    // "de la", before falling back to a one-word particle like "dela").
     let surnameWords = [words[words.length - 1]];
     let firstNameWords = words.slice(0, -1);
 
@@ -154,6 +175,7 @@
     if (!sessionUser) return;
 
     /* ---------------- personalize ---------------- */
+
     const first = sessionUser.name.trim().split(" ")[0];
     document.getElementById("userFirstName").textContent = first;
     document.getElementById("userName").textContent = sessionUser.name;
@@ -166,8 +188,9 @@
     });
 
     /* ================================================================
-       Browse the public repository 
+       Browse the public repository (unchanged behavior)
        ================================================================ */
+
     const searchInput = document.getElementById("searchInput");
     const chipsContainer = document.getElementById("tagFilterPanel");
     const tagFilterToggle = document.getElementById("tagFilterToggle");
@@ -205,7 +228,15 @@
     }
 
     function renderTagFilterOptions() {
+      // Pulled from the master TAG_OPTIONS list (not from tags currently
+      // present on published capstones), so every official tag shows up
+      // here even before any capstone has been tagged with it — and any
+      // stray junk tag that isn't part of the official taxonomy (e.g.
+      // leftover test data) never appears.
       const sortedTags = Array.from(TAG_OPTIONS).sort((a, b) => a.localeCompare(b));
+
+      // Drop any previously active tag that's no longer part of the
+      // official tag list.
       activeTags.forEach((t) => { if (!sortedTags.includes(t)) activeTags.delete(t); });
 
       chipsContainer.innerHTML =
@@ -240,16 +271,21 @@
       if (years.includes(Number(current)) || current === "all") yearFilter.value = current;
     }
 
-    // Removed tags and program from the summary card
     function cardHtml(item) {
-      const meta = item.year ? escapeHtml(item.year) : "";
+      const tagsHtml = (item.tags || [])
+        .filter(Boolean)
+        .map((t, i) => `<span class="tag ${tagClasses[i % tagClasses.length]}">${escapeHtml(t)}</span>`)
+        .join("");
+
+      const meta = [item.year, item.program].filter(Boolean).join(" · ");
 
       return (
         '<article class="card" tabindex="0" data-id="' + item.id + '">' +
           '<div class="card__top">' +
             '<h2 class="card__title">' + escapeHtml(item.title) + '</h2>' +
           '</div>' +
-          '<p class="card__meta">' + meta + '</p>' +
+          '<p class="card__meta">' + escapeHtml(meta) + '</p>' +
+          '<div class="card__tags">' + tagsHtml + '</div>' +
         '</article>'
       );
     }
@@ -325,8 +361,9 @@
     });
 
     /* ================================================================
-       Your submissions (real data)
+       Your submissions (real data — upload, edit, delete, resubmit)
        ================================================================ */
+
     const uploadedCount = document.getElementById("uploadedCount");
     const uploadedList = document.getElementById("uploadedList");
     const uploadedEmpty = document.getElementById("uploadedEmpty");
@@ -347,7 +384,6 @@
       statMine.textContent = mySubmissions.length;
     }
 
-    // Removed tags and adviser from your submissions summary
     function renderMySubmissions() {
       uploadedList.innerHTML = "";
 
@@ -355,6 +391,11 @@
         const article = document.createElement("article");
         article.className = "ucard";
         article.dataset.id = item.id;
+
+        const tagsHtml = (item.tags || [])
+          .filter(Boolean)
+          .map((t, i) => `<span class="tag ${tagClasses[i % tagClasses.length]}">${escapeHtml(t)}</span>`)
+          .join("");
 
         const [pillClass, pillLabel] = STATUS_PILL[item.status] || ["pill--draft", item.status];
         const feedback = item.status === "Rejected" && item.review_note
@@ -365,11 +406,13 @@
           '<div class="ucard__top">' +
             '<div>' +
               '<p class="ucard__title">' + escapeHtml(item.title) + '</p>' +
-              '<p class="ucard__meta">' + escapeHtml(item.authors) + ' &middot; ' + escapeHtml(item.year || "—") + '</p>' +
+              '<p class="ucard__meta">' + escapeHtml(item.authors) + ' &middot; ' + escapeHtml(item.year || "—") +
+                (item.adviser ? ' &middot; ' + escapeHtml(item.adviser) : '') + '</p>' +
               feedback +
             '</div>' +
             '<span class="pill ' + pillClass + '">' + pillLabel + '</span>' +
           '</div>' +
+          '<div class="ucard__tags">' + tagsHtml + '</div>' +
           '<div class="ucard__actions">' +
             '<button type="button" class="btn btn--ghost btn--sm" data-view>View details</button>' +
             '<button type="button" class="btn btn--ghost btn--sm" data-delete>Delete</button>' +
@@ -421,6 +464,7 @@
 
     const aiExtractedTitle = document.getElementById("aiExtractedTitle");
     const aiExtractedAuthors = document.getElementById("aiExtractedAuthors");
+    const aiExtractedAdviser = document.getElementById("aiExtractedAdviser");
     const aiExtractedDate = document.getElementById("aiExtractedDate");
     const aiExtractedProgram = document.getElementById("aiExtractedProgram");
     const aiExtractedAbstract = document.getElementById("aiExtractedAbstract");
@@ -529,7 +573,10 @@
       return base.replace(/\b\w/g, (c) => c.toUpperCase());
     }
 
-    /* Generate a PDF summary (Adviser, Program, and Tags removed) */
+    /* (Client-side NLP parser removed — extraction is now handled by
+       Google Gemini AI on the server via POST /api/nlp/process-capstone) */
+
+    /* Generate a PDF summary using jsPDF instead of plain text */
     function downloadSummaryPdf(meta, filename) {
       if (!window.jspdf || !window.jspdf.jsPDF) {
         showToast("PDF library not loaded yet. Please try again in a moment.");
@@ -589,7 +636,10 @@
 
       addField("Title", meta.title);
       addField("Authors", meta.authors);
+      addField("Adviser", meta.adviser);
       addField("Year", String(meta.year));
+      addField("Program", meta.program);
+      addField("Tags", (meta.tags || []).join(", ") || "None detected");
 
       // Abstract
       doc.setDrawColor(200, 200, 200);
@@ -633,12 +683,13 @@
 
       let parsedResult = null;
 
+      // Send the PDF to the Gemini-powered backend for AI extraction
       try {
         const formData = new FormData();
         formData.append("pdf", file);
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000); 
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s for Render wake-up and AI processing
 
         const response = await fetch(API_URL + "/api/nlp/process-capstone", {
           method: "POST",
@@ -658,18 +709,21 @@
         parsedResult = {
           title: r.title || titleCaseFromFilename(file.name),
           authors: r.authors ? formatAuthorsApa(r.authors) : "",
+          adviser: r.adviser || "",
           year: r.year || null,
           program: r.program || "",
           abstract: r.abstract || "",
-          tags: [], 
+          tags: [],         // Tags are selected manually by the student
         };
       } catch (err) {
         console.error("Gemini AI extraction failed:", err);
         showToast("AI extraction failed: " + err.message);
 
+        // Minimal fallback — just fill in what we can from the filename
         parsedResult = {
           title: titleCaseFromFilename(file.name),
           authors: "",
+          adviser: "",
           year: null,
           program: "",
           abstract: "",
@@ -679,20 +733,20 @@
 
       extractedData = parsedResult;
 
+      // Prepare the generated filename for the PDF summary
       const baseName = file.name.replace(/\.pdf$/i, "").replace(/\s+/g, "_");
       generatedFileName = `${baseName}_extracted_summary.pdf`;
 
+      // Update UI preview
       if (aiExtractedTitle) aiExtractedTitle.textContent = extractedData.title || "—";
       if (aiExtractedAuthors) aiExtractedAuthors.textContent = extractedData.authors || "—";
+      if (aiExtractedAdviser) aiExtractedAdviser.textContent = extractedData.adviser || "—";
       if (aiExtractedDate) aiExtractedDate.textContent = String(extractedData.year || "—");
       if (aiExtractedProgram) aiExtractedProgram.textContent = extractedData.program || "—";
       if (aiExtractedAbstract) aiExtractedAbstract.textContent = extractedData.abstract || "—";
       if (aiFileName) aiFileName.textContent = generatedFileName;
 
-      // Hide the adviser DOM block entirely if it still exists in HTML
-      const adviserBlock = document.getElementById("aiExtractedAdviser");
-      if (adviserBlock) adviserBlock.parentElement.hidden = true;
-
+      // Render the tag picker so the student can select tags manually
       selectedUploadTags.clear();
       renderUploadTagPicker();
 
@@ -726,9 +780,13 @@
         try {
           const filePath = await uploadPdfFile();
 
+          // Submissions start with status 'Pending' so the teacher can review and approve it.
+          // If approved by the teacher, it is marked 'Approved' and published to the database repository!
+          // Use the manually-selected tags from the tag picker
           const payload = {
             title: extractedData.title,
             authors: extractedData.authors,
+            adviser: extractedData.adviser,
             year: extractedData.year,
             program: extractedData.program,
             abstract: extractedData.abstract,
@@ -755,8 +813,10 @@
     }
 
     /* ================================================================
-       Detail modal — strictly extracted view (no original PDF/Adviser/Tags/Program)
+       Detail modal — shared by both public browse results and your
+       own submissions, so it needs to look items up in either list.
        ================================================================ */
+
     const overlay = document.getElementById("overlay");
     const modal = document.getElementById("detailModal");
     let lastFocused = null;
@@ -775,18 +835,12 @@
       lastFocused = document.activeElement;
 
       document.getElementById("detail-title").textContent = item.title;
-      // Replaced program and tags, ONLY display year in the subtitle
-      document.getElementById("detailMeta").textContent = item.year ? String(item.year) : "—";
+      const meta = [item.year, item.program].filter(Boolean).join(" · ");
+      document.getElementById("detailMeta").textContent = meta;
       document.getElementById("detailAbstract").textContent = item.abstract || "No abstract provided.";
       document.getElementById("detailAuthors").textContent = item.authors || "—";
+      document.getElementById("detailAdviser").textContent = item.adviser || "—";
       document.getElementById("detailNote").textContent = "";
-
-      // Hide or clear out unwanted fields in the DOM if they still exist in the HTML
-      const adviserEl = document.getElementById("detailAdviser");
-      if (adviserEl) adviserEl.parentElement.hidden = true; 
-
-      const tagWrap = document.getElementById("detailTags");
-      if (tagWrap) tagWrap.hidden = true;
 
       const statusEl = document.getElementById("detailStatus");
       const [pillClass, pillLabel] = STATUS_PILL[item.status] || ["", item.status];
@@ -800,6 +854,17 @@
       } else {
         feedbackBlock.hidden = true;
       }
+
+      const tagWrap = document.getElementById("detailTags");
+      tagWrap.innerHTML = "";
+      (item.tags || []).forEach((t, i) => {
+        const span = document.createElement("span");
+        span.className = `tag ${tagClasses[i % tagClasses.length]}`;
+        span.textContent = t;
+        tagWrap.appendChild(span);
+      });
+
+
 
       overlay.hidden = false;
       void overlay.offsetWidth;
@@ -830,16 +895,26 @@
       if (e.target === overlay) closeDetail();
     });
 
-    // Disable and hide original PDF download entirely
-    const downloadBtn = document.getElementById("detailDownloadBtn");
-    if (downloadBtn) {
-      downloadBtn.style.display = "none";
-    }
+    document.getElementById("detailDownloadBtn").addEventListener("click", async () => {
+      const noteEl = document.getElementById("detailNote");
+      if (!openItem || !openItem.file_path) {
+        noteEl.textContent = "No file is attached to this record.";
+        return;
+      }
+      noteEl.textContent = "Preparing download…";
+      const { data, error } = await db.storage.from(BUCKET).createSignedUrl(openItem.file_path, 60);
+      if (error || !data) {
+        noteEl.textContent = "Couldn't generate a download link.";
+        return;
+      }
+      noteEl.textContent = "";
+      window.open(data.signedUrl, "_blank");
+    });
 
-    await Promise.all([loadPublicCapstones(), loadMySubmissions()]);
-    applyFilters();
-    renderMySubmissions();
-  }
+ await Promise.all([loadPublicCapstones(), loadMySubmissions()]);
+  applyFilters();
+  renderMySubmissions();
+}
 
-  init();
+init();
 })();
