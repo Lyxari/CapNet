@@ -589,17 +589,6 @@
       const usable = pw - margin * 2;
       let y = 25;
 
-      function addText(text, size, style, maxW, lineH) {
-        doc.setFontSize(size);
-        doc.setFont("helvetica", style || "normal");
-        const split = doc.splitTextToSize(String(text || "—"), maxW || usable);
-        split.forEach((line) => {
-          if (y > 270) { doc.addPage(); y = 20; }
-          doc.text(line, margin, y);
-          y += (lineH || size * 0.45);
-        });
-      }
-
       function addField(label, value) {
         doc.setFontSize(9);
         doc.setFont("helvetica", "bold");
@@ -634,12 +623,10 @@
       y = 52;
       doc.setTextColor(30, 30, 30);
 
+      // Only Title, Authors, and Year remain
       addField("Title", meta.title);
       addField("Authors", meta.authors);
-      addField("Adviser", meta.adviser);
       addField("Year", String(meta.year));
-      addField("Program", meta.program);
-      addField("Tags", (meta.tags || []).join(", ") || "None detected");
 
       // Abstract
       doc.setDrawColor(200, 200, 200);
@@ -666,7 +653,6 @@
         showToast("PDF summary downloaded: " + savedName);
       });
     }
-
     async function handleFile(file) {
       const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
       if (!isPdf) { showToast("Please upload a PDF manuscript."); return; }
