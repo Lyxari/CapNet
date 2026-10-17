@@ -240,8 +240,9 @@
 
         <!-- Manual tag picker -->
         <div class="ai-tag-picker">
-          <p class="ai-tag-picker__label">Select tags <span class="ai-tag-picker__hint">(choose all that apply)</span></p>
+          <p class="ai-tag-picker__label">Select tags <span style="color:var(--rust); font-weight:700;">*</span> <span class="ai-tag-picker__hint">(at least 1 required)</span></p>
           <div class="ai-tag-picker__grid" id="uploadTagGrid"></div>
+          <p id="uploadTagError" style="margin-top:8px; font-size:0.84rem; font-weight:600; color:var(--rust-dark); display:none;"></p>
         </div>
 
         <div class="detail__actions">

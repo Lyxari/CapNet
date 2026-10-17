@@ -524,6 +524,11 @@
       if (cb.checked) selectedUploadTags.add(cb.value);
       else selectedUploadTags.delete(cb.value);
       cb.closest("label").classList.toggle("is-selected", cb.checked);
+
+      const tagError = document.getElementById("uploadTagError");
+      if (tagError && selectedUploadTags.size > 0) {
+        tagError.style.display = "none";
+      }
     });
 
     function resetUploadModal() {
@@ -532,6 +537,11 @@
       generatedFileContent = "";
       generatedFileName = "";
       selectedUploadTags.clear();
+      const tagError = document.getElementById("uploadTagError");
+      if (tagError) {
+        tagError.textContent = "";
+        tagError.style.display = "none";
+      }
       uploadStepFile.hidden = false;
       if (uploadStepProcessing) uploadStepProcessing.hidden = true;
       if (uploadStepExtracted) uploadStepExtracted.hidden = true;
@@ -772,6 +782,20 @@
       submitExtractedForReviewBtn.addEventListener("click", async () => {
         if (!extractedData) {
           showToast("No extracted data found. Please select a PDF manuscript.");
+          return;
+        }
+
+        if (!selectedUploadTags || selectedUploadTags.size === 0) {
+          showToast("Please select at least one tag before submitting.");
+          const tagError = document.getElementById("uploadTagError");
+          if (tagError) {
+            tagError.textContent = "Please select at least one tag for this capstone project.";
+            tagError.style.display = "block";
+          }
+          const tagPickerContainer = document.querySelector(".ai-tag-picker");
+          if (tagPickerContainer) {
+            tagPickerContainer.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
           return;
         }
 
