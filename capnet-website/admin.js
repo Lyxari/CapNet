@@ -200,70 +200,53 @@
           renderUsers();
         });
 
-        /* delete account (with inline confirm) */
+        /* delete account */
         const deleteBtn = tr.querySelector("[data-delete-account]");
-        const actionsCell = tr.querySelector(".atable__actions");
 
-        deleteBtn.addEventListener("click", () => {
+        deleteBtn.addEventListener("click", async () => {
           if (isSelf) return;
 
-          actionsCell.innerHTML =
-            '<span class="delete-confirm">Delete this account?</span>' +
-            '<button type="button" class="btn btn--ghost btn--sm" data-cancel-delete>Cancel</button>' +
-            '<button type="button" class="btn btn--danger btn--sm" data-confirm-delete>Yes, delete</button>';
+          const confirmed = window.confirm(
+            "Are you sure you want to delete the account for " + displayName + "?\n\nThis will remove their account profile while preserving any uploaded capstones in the repository."
+          );
+          if (!confirmed) return;
 
-          actionsCell.querySelector("[data-cancel-delete]").addEventListener("click", () => {
-            renderUsers();
-          });
+          deleteBtn.disabled = true;
+          deleteBtn.textContent = "Deleting…";
 
-          actionsCell.querySelector("[data-confirm-delete]").addEventListener("click", async () => {
-            const confirmBtn = actionsCell.querySelector("[data-confirm-delete]");
-            const cancelBtn = actionsCell.querySelector("[data-cancel-delete]");
-            confirmBtn.disabled = true;
-            cancelBtn.disabled = true;
-            confirmBtn.textContent = "Deleting…";
+          // Unlink their uploaded capstones first so the repository keeps the files
+          const { data: unlinked, error: unlinkError } = await db
+            .from("capstones")
+            .update({ uploaded_by: null })
+            .eq("uploaded_by", account.id)
+            .select("id");
 
-            // NOTE: this deletes the profiles row only, not the person's
-            // Supabase Auth login (that requires the delete-user Edge
-            // Function in supabase/functions/delete-user, not deployed
-            // yet). Swap this block for the functions.invoke() version
-            // once that's deployed.
+          if (unlinkError) {
+            showToast("Couldn't unlink capstones: " + unlinkError.message);
+            deleteBtn.disabled = false;
+            deleteBtn.textContent = "Delete";
+            return;
+          }
 
-            // Unlink (not delete) their uploaded capstones first, so the
-            // repository keeps the actual work even after the account
-            // that uploaded it is gone.
-            const { data: unlinked, error: unlinkError } = await db
-              .from("capstones")
-              .update({ uploaded_by: null })
-              .eq("uploaded_by", account.id)
-              .select("id");
+          const { error: deleteError } = await db
+            .from("profiles")
+            .delete()
+            .eq("id", account.id);
 
-            if (unlinkError) {
-              showToast("Couldn't delete account: " + unlinkError.message);
-              renderUsers();
-              return;
-            }
+          if (deleteError) {
+            showToast("Couldn't delete account: " + deleteError.message);
+            deleteBtn.disabled = false;
+            deleteBtn.textContent = "Delete";
+            return;
+          }
 
-            const { error: deleteError } = await db
-              .from("profiles")
-              .delete()
-              .eq("id", account.id);
-
-            if (deleteError) {
-              showToast("Couldn't delete account: " + deleteError.message);
-              renderUsers();
-              return;
-            }
-
-            accounts = accounts.filter((a) => a.id !== account.id);
-            const n = (unlinked || []).length;
-            showToast(
-              "Deleted " + displayName +
-              (n > 0 ? ". " + n + " capstone" + (n === 1 ? "" : "s") + " kept in the repository, unlinked." : ".")
-            );
-            renderUsers();
-            renderDomainStat();
-          });
+          accounts = accounts.filter((a) => a.id !== account.id);
+          const n = (unlinked || []).length;
+          showToast(
+            "Deleted " + displayName +
+            (n > 0 ? ". " + n + " capstone" + (n === 1 ? "" : "s") + " preserved in repository." : ".")
+          );
+          renderUsers();
         });
 
         tbody.appendChild(tr);
@@ -273,52 +256,13 @@
     userSearch.addEventListener("input", renderUsers);
     roleFilter.addEventListener("change", renderUsers);
 
-    /* ---------------- domain stat (real, computed from account emails) ---------------- */
-
-    function renderDomainStat() {
-      const valueEl = document.getElementById("domainStatValue");
-      const subEl = document.getElementById("domainStatSub");
-      const cardEl = document.getElementById("domainCard");
-
-      const domainCounts = {};
-      accounts.forEach((a) => {
-        const email = a.email || "";
-        const at = email.lastIndexOf("@");
-        if (at === -1) return;
-        const domain = email.slice(at + 1).toLowerCase();
-        domainCounts[domain] = (domainCounts[domain] || 0) + 1;
-      });
-
-      const domains = Object.entries(domainCounts).sort((a, b) => b[1] - a[1]);
-
-      if (domains.length === 0) {
-        valueEl.textContent = "—";
-        subEl.textContent = "No accounts registered yet.";
-        cardEl.classList.remove("security-card--ok");
-        return;
-      }
-
-      const [topDomain, topCount] = domains[0];
-      valueEl.textContent = topCount + " / " + accounts.length + " on @" + topDomain;
-
-      if (domains.length === 1) {
-        subEl.textContent = "Every registered account currently uses this domain.";
-        cardEl.classList.add("security-card--ok");
-      } else {
-        subEl.textContent = "";
-        cardEl.classList.remove("security-card--ok");
-      }
-    }
-
     await loadAccounts();
     renderUsers();
-    renderDomainStat();
 
     /* ---------------- repository analytics (real capstones data) ---------------- */
 
     const statCapstones = document.getElementById("statCapstones");
     const statDrafts = document.getElementById("statDrafts");
-    const statSecuredDocs = document.getElementById("statSecuredDocs");
     const yearChart = document.getElementById("yearChart");
     const yearChartEmpty = document.getElementById("yearChartEmpty");
     const tagFreqList = document.getElementById("tagFreqList");
@@ -335,11 +279,9 @@
     const allCapstones = capstones || [];
     const approved = allCapstones.filter((c) => c.status === "Approved");
     const drafts = allCapstones.filter((c) => c.status === "Draft");
-    const withFile = allCapstones.filter((c) => c.file_path);
 
     statCapstones.textContent = approved.length;
     statDrafts.textContent = drafts.length;
-    statSecuredDocs.textContent = allCapstones.length === 0 ? "0 / 0" : (withFile.length + " / " + allCapstones.length);
 
     /* capstones indexed by year */
     const yearCounts = {};

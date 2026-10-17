@@ -8,11 +8,15 @@
 .atable-wrap{
   background: var(--paper);
   border-radius: var(--radius-md);
-  overflow: hidden;
+  overflow-x: auto;
   box-shadow: 0 1px 0 rgba(255,255,255,.5) inset;
 }
 
-.atable{ font-size: .88rem; }
+.atable{
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
+}
 
 .atable thead th{
   text-align: left;
@@ -24,6 +28,12 @@
   padding: 14px 18px;
   border-bottom: 1.4px solid var(--ink-08);
 }
+
+.atable thead th:nth-child(1){ width: 25%; }
+.atable thead th:nth-child(2){ width: 28%; }
+.atable thead th:nth-child(3){ width: 14%; }
+.atable thead th:nth-child(4){ width: 12%; }
+.atable thead th:nth-child(5){ width: 21%; min-width: 170px; text-align: right; }
 
 .atable tbody td{
   padding: 13px 18px;
@@ -65,7 +75,11 @@
 .statuspill--active{ background: var(--teal-tint); color: var(--teal); }
 .statuspill--suspended{ background: var(--rust-tint); color: var(--rust-dark); }
 
-.atable__actions{ text-align: right; white-space: nowrap; }
+.atable__actions{
+  text-align: right;
+  white-space: nowrap;
+  min-width: 170px;
+}
 
 .atable__actions .btn + .btn{ margin-left: 6px; }
 

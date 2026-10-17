@@ -242,6 +242,7 @@
             '<button type="button" class="btn btn--ghost btn--sm" data-view>View details</button>' +
             '<button type="button" class="btn btn--dark btn--sm" data-approve>Approve</button>' +
             '<button type="button" class="btn btn--ghost btn--sm" data-deny>Deny with reason</button>' +
+            '<button type="button" class="btn btn--ghost btn--sm" data-delete style="color:var(--rust);">Delete</button>' +
           '</div>' +
           '<div class="qcard__revise-panel" hidden>' +
             '<label class="revise-field">' +
@@ -271,7 +272,10 @@
           '</div>' +
           '<p class="tcard__meta">' + escapeHtml(formatAuthorsDisplay(item.authors)) + ' &middot; ' + escapeHtml(item.year || "—") + '</p>' +
           note +
-          '<button type="button" class="btn btn--ghost btn--sm" data-view>View details</button>' +
+          '<div class="tcard__actions" style="margin-top:8px;">' +
+            '<button type="button" class="btn btn--ghost btn--sm" data-view>View details</button>' +
+            '<button type="button" class="btn btn--ghost btn--sm" data-delete style="color:var(--rust); margin-left:6px;">Delete</button>' +
+          '</div>' +
         '</article>'
       );
     }
@@ -353,6 +357,39 @@
       return true;
     }
 
+    async function deleteCapstone(item) {
+      if (!item) return false;
+      const title = item.title || "this capstone";
+      const confirmed = window.confirm(
+        'Are you sure you want to permanently delete "' + title + '"?\n\nThis will remove the uploaded PDF file from storage and delete the metadata record from the database.'
+      );
+      if (!confirmed) return false;
+
+      // 1. Delete the physical file from Supabase Storage
+      if (item.file_path) {
+        const { error: storageError } = await db.storage.from(BUCKET).remove([item.file_path]);
+        if (storageError) {
+          console.warn("Storage deletion notice:", storageError.message);
+        }
+      }
+
+      // 2. Delete the record from the database table
+      const { error: dbError } = await db.from("capstones").delete().eq("id", item.id);
+      if (dbError) {
+        showToast("Couldn't delete record: " + dbError.message);
+        return false;
+      }
+
+      // 3. Update local state & UI
+      pending = pending.filter((p) => p.id !== item.id);
+      reviewed = reviewed.filter((r) => r.id !== item.id);
+      renderTagChips();
+      renderYearFilterOptions();
+      renderLists();
+      showToast('Permanently deleted "' + title + '"');
+      return true;
+    }
+
     pendingList.addEventListener("click", async (e) => {
       const card = e.target.closest(".qcard");
       if (!card) return;
@@ -361,6 +398,11 @@
 
       if (e.target.closest("[data-view]")) {
         openDetail(item.id);
+        return;
+      }
+
+      if (e.target.closest("[data-delete]")) {
+        await deleteCapstone(item);
         return;
       }
 
@@ -397,10 +439,21 @@
       }
     });
 
-    reviewedList.addEventListener("click", (e) => {
+    reviewedList.addEventListener("click", async (e) => {
       const card = e.target.closest(".tcard");
       if (!card) return;
-      if (e.target.closest("[data-view]")) openDetail(card.dataset.id);
+      const item = reviewed.find((r) => r.id === card.dataset.id);
+      if (!item) return;
+
+      if (e.target.closest("[data-view]")) {
+        openDetail(item.id);
+        return;
+      }
+
+      if (e.target.closest("[data-delete]")) {
+        await deleteCapstone(item);
+        return;
+      }
     });
 
     /* ================================================================
@@ -538,6 +591,15 @@
         closeDetail();
       }
     });
+
+    const detailDeleteBtn = document.getElementById("detailDeleteBtn");
+    if (detailDeleteBtn) {
+      detailDeleteBtn.addEventListener("click", async () => {
+        if (!openItem) return;
+        const ok = await deleteCapstone(openItem);
+        if (ok) closeDetail();
+      });
+    }
 
     /* ---------------- init ---------------- */
 

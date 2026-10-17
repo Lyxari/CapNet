@@ -460,6 +460,9 @@
       }
       if (e.target.closest("[data-delete]")) {
         if (!confirm("Are you sure you want to delete this submission?")) return;
+        if (item.file_path) {
+          await db.storage.from(BUCKET).remove([item.file_path]);
+        }
         const { error } = await db.from("capstones").delete().eq("id", item.id);
         if (error) {
           showToast("Couldn't delete: " + error.message);
