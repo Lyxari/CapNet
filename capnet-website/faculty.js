@@ -28,15 +28,19 @@
       return null;
     }
 
-    const { data: profile, error } = await db
+    let { data: profile, error } = await db
       .from("profiles")
       .select("full_name, role, status")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (error || !profile) {
-      window.location.href = "index.html";
-      return null;
+    if (!profile) {
+      const meta = user.user_metadata || {};
+      profile = {
+        full_name: meta.full_name || user.email.split("@")[0],
+        role: meta.role || "faculty",
+        status: "active"
+      };
     }
 
     if (profile.status === "suspended") {
@@ -73,6 +77,12 @@
     return String(str || "").replace(/[&<>"']/g, (c) => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[c]));
+  }
+
+  function formatAuthorsDisplay(raw) {
+    if (!raw) return "—";
+    if (Array.isArray(raw)) return raw.join(", ");
+    return String(raw).replace(/;\s*/g, ", ");
   }
 
   const tagClasses = ["tag--purple", "tag--teal", "tag--rust", "tag--pink", "tag--indigo"];
@@ -176,7 +186,10 @@
 
     function matchesFilter(item) {
       const query = searchInput.value.trim().toLowerCase();
-      const haystack = (item.title + " " + item.authors + " " + (item.tags || []).join(" ")).toLowerCase();
+      const authorsStr = Array.isArray(item.authors) ? item.authors.join(" ") : (item.authors || "");
+      const abstractStr = item.abstract || "";
+      const tagsStr = (item.tags || []).join(" ");
+      const haystack = (item.title + " " + authorsStr + " " + abstractStr + " " + tagsStr).toLowerCase();
       const matchesQuery = !query || haystack.includes(query);
       const matchesTags = activeTags.size === 0 ||
         (item.tags || []).some((t) => activeTags.has(t.trim ? t.trim() : t));
@@ -219,8 +232,8 @@
           '<div class="qcard__top">' +
             '<div>' +
               '<p class="qcard__title">' + escapeHtml(item.title) + '</p>' +
-              '<p class="qcard__meta">Submitted by ' + escapeHtml(item.authors) + ' &middot; ' + escapeHtml(item.year || "—") +
-                (item.adviser ? ' &middot; Adviser: ' + escapeHtml(item.adviser) : '') + '</p>' +
+              '<p class="qcard__meta">Submitted by ' + escapeHtml(formatAuthorsDisplay(item.authors)) + ' &middot; ' + escapeHtml(item.year || "—") +
+                '</p>' +
             '</div>' +
             '<span class="pill pill--pending">Pending review</span>' +
           '</div>' +
@@ -256,7 +269,7 @@
             '<p class="tcard__title">' + escapeHtml(item.title) + '</p>' +
             '<span class="pill ' + pillClass + '">' + pillLabel + '</span>' +
           '</div>' +
-          '<p class="tcard__meta">' + escapeHtml(item.authors) + ' &middot; ' + escapeHtml(item.year || "—") + '</p>' +
+          '<p class="tcard__meta">' + escapeHtml(formatAuthorsDisplay(item.authors)) + ' &middot; ' + escapeHtml(item.year || "—") + '</p>' +
           note +
           '<button type="button" class="btn btn--ghost btn--sm" data-view>View details</button>' +
         '</article>'
@@ -412,11 +425,13 @@
       lastFocused = document.activeElement;
 
       document.getElementById("detail-title").textContent = item.title;
-      const meta = [item.year, item.program].filter(Boolean).join(" · ");
-      document.getElementById("detailMeta").textContent = meta;
+      const authorsStr = formatAuthorsDisplay(item.authors);
+      const metaParts = [];
+      if (authorsStr && authorsStr !== "—") metaParts.push(authorsStr);
+      if (item.year) metaParts.push(String(item.year));
+      document.getElementById("detailMeta").textContent = metaParts.join(" • ");
       document.getElementById("detailAbstract").textContent = item.abstract || "No abstract provided.";
-      document.getElementById("detailAuthors").textContent = item.authors || "—";
-      document.getElementById("detailAdviser").textContent = item.adviser || "—";
+      document.getElementById("detailAuthors").textContent = authorsStr;
       document.getElementById("detailNote").textContent = "";
 
       const statusEl = document.getElementById("detailStatus");

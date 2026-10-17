@@ -88,6 +88,10 @@
           <input type="password" name="password" placeholder="••••••••" required autocomplete="current-password" minlength="6">
         </label>
 
+        <div style="display: flex; justify-content: flex-end; margin-top: -6px; margin-bottom: 2px;">
+          <button type="button" data-switch-modal="forgot" style="background:none; border:none; color:var(--rust); font-size:0.8rem; font-weight:600; cursor:pointer; text-decoration:underline;">Forgot password?</button>
+        </div>
+
         <button type="submit" class="btn btn--solid btn--block">
           <span class="btn__label">Sign in</span>
           <span class="btn__spinner" aria-hidden="true"></span>
@@ -121,12 +125,11 @@
             <option value="" disabled selected>Select your role</option>
             <option value="student">Student</option>
             <option value="faculty">Faculty / adviser</option>
-            <option value="admin">Admin</option>
           </select>
         </label>
         <label class="field">
           <span>Password</span>
-          <input type="password" name="password" placeholder="At least 8 characters" required autocomplete="new-password" minlength="8">
+          <input type="password" name="password" placeholder="At least 6 characters" required autocomplete="new-password" minlength="6">
         </label>
 
         <button type="submit" class="btn btn--solid btn--block">
@@ -136,9 +139,88 @@
 
         <p class="form__error" role="alert"></p>
         <p class="form__success" role="status">Account created — taking you to your dashboard…</p>
-      </form>s
+      </form>
 
       <p class="modal__switch">Already have an account? <button type="button" data-switch-modal="signin">Sign in</button></p>
+    </section>
+
+    <section class="modal" id="modal-verify" role="dialog" aria-modal="true" aria-labelledby="verify-title" hidden>
+      <button type="button" class="modal__close" data-close-modal aria-label="Close dialog">&times;</button>
+      <p class="modal__eyebrow">Verification</p>
+      <h2 class="modal__title" id="verify-title">Enter confirmation code</h2>
+      <p class="modal__sub" id="verify-sub">We sent an 8-digit verification code to your T.I.P. email.</p>
+
+      <form class="form" data-form="verify" novalidate>
+        <label class="field">
+          <span>Confirmation code</span>
+          <input type="text" name="otp" placeholder="••••••••" maxlength="10" required autocomplete="one-time-code" style="letter-spacing: 0.22em; font-size: 1.25rem; font-weight: 600; text-align: center;">
+        </label>
+
+        <button type="submit" class="btn btn--solid btn--block">
+          <span class="btn__label">Verify &amp; Continue</span>
+          <span class="btn__spinner" aria-hidden="true"></span>
+        </button>
+
+        <p class="form__error" role="alert"></p>
+        <p class="form__success" role="status">Email verified! Taking you to your dashboard…</p>
+      </form>
+
+      <p class="modal__switch">Didn't get the code? <button type="button" id="btn-resend-otp">Resend code</button></p>
+      <p class="modal__switch" style="margin-top: 8px;"><button type="button" data-switch-modal="signin">Back to sign in</button></p>
+    </section>
+
+    <!-- ============== Forgot Password modal ============== -->
+    <section class="modal" id="modal-forgot" role="dialog" aria-modal="true" aria-labelledby="forgot-title" hidden>
+      <button type="button" class="modal__close" data-close-modal aria-label="Close dialog">&times;</button>
+      <p class="modal__eyebrow">Recovery</p>
+      <h2 class="modal__title" id="forgot-title">Reset your password</h2>
+      <p class="modal__sub">Enter your T.I.P. email address and we'll send you an 8-digit password reset code.</p>
+
+      <form class="form" data-form="forgot" novalidate>
+        <label class="field">
+          <span>School email</span>
+          <input type="email" name="email" placeholder="you@tip.edu.ph" required autocomplete="email">
+        </label>
+
+        <button type="submit" class="btn btn--solid btn--block">
+          <span class="btn__label">Send reset code</span>
+          <span class="btn__spinner" aria-hidden="true"></span>
+        </button>
+
+        <p class="form__error" role="alert"></p>
+        <p class="form__success" role="status">Reset code sent! Check your inbox…</p>
+      </form>
+
+      <p class="modal__switch">Remembered your password? <button type="button" data-switch-modal="signin">Sign in</button></p>
+    </section>
+
+    <!-- ============== Reset Password with Code modal ============== -->
+    <section class="modal" id="modal-reset" role="dialog" aria-modal="true" aria-labelledby="reset-title" hidden>
+      <button type="button" class="modal__close" data-close-modal aria-label="Close dialog">&times;</button>
+      <p class="modal__eyebrow">Set new password</p>
+      <h2 class="modal__title" id="reset-title">Create new password</h2>
+      <p class="modal__sub" id="reset-sub">Enter the reset code sent to your email and your new password.</p>
+
+      <form class="form" data-form="reset" novalidate>
+        <label class="field">
+          <span>Reset code</span>
+          <input type="text" name="otp" placeholder="••••••••" maxlength="10" required autocomplete="one-time-code" style="letter-spacing: 0.22em; font-size: 1.25rem; font-weight: 600; text-align: center;">
+        </label>
+        <label class="field">
+          <span>New password</span>
+          <input type="password" name="newPassword" placeholder="At least 8 characters" required autocomplete="new-password" minlength="8">
+        </label>
+
+        <button type="submit" class="btn btn--solid btn--block">
+          <span class="btn__label">Update password</span>
+          <span class="btn__spinner" aria-hidden="true"></span>
+        </button>
+
+        <p class="form__error" role="alert"></p>
+        <p class="form__success" role="status">Password updated successfully! Redirecting…</p>
+      </form>
+
+      <p class="modal__switch">Remembered password? <button type="button" data-switch-modal="signin">Back to sign in</button></p>
     </section>
 
   </div>

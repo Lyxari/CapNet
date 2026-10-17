@@ -226,8 +226,6 @@ router.post('/process-capstone', upload.single('pdf'), async (req, res) => {
       data: {
         title: result.title || '',
         authors: Array.isArray(result.authors) ? result.authors.join('; ') : (result.authors || ''),
-        adviser: '',
-        program: '',
         year: Number.isFinite(Number(result.year)) && Number(result.year) > 0 ? Number(result.year) : null,
         abstract: result.abstract || '',
         abstractSource: source,

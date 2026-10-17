@@ -29,15 +29,19 @@
       return null;
     }
 
-    const { data: profile, error } = await db
+    let { data: profile, error } = await db
       .from("profiles")
       .select("full_name, role, status")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (error || !profile) {
-      window.location.href = "index.html";
-      return null;
+    if (!profile) {
+      const meta = user.user_metadata || {};
+      profile = {
+        full_name: meta.full_name || user.email.split("@")[0],
+        role: meta.role || "student",
+        status: "active"
+      };
     }
 
     if (profile.status === "suspended") {
@@ -140,13 +144,25 @@
   }
 
   function formatAuthorsApa(raw) {
-    const parts = raw.split(/;|\n/).map((s) => s.trim()).filter(Boolean);
+    if (!raw) return "";
+    let parts = [];
+    if (Array.isArray(raw)) {
+      parts = raw.map((s) => String(s || "").trim()).filter(Boolean);
+    } else {
+      parts = String(raw).split(/;|\n/).map((s) => s.trim()).filter(Boolean);
+    }
     if (parts.length === 0) return "";
 
     const formatted = parts.map(formatOneAuthorApa);
     if (formatted.length === 1) return formatted[0];
     if (formatted.length === 2) return formatted[0] + ", & " + formatted[1];
     return formatted.slice(0, -1).join(", ") + ", & " + formatted[formatted.length - 1];
+  }
+
+  function formatAuthorsDisplay(raw) {
+    if (!raw) return "—";
+    if (Array.isArray(raw)) return raw.join(", ");
+    return String(raw).replace(/;\s*/g, ", ");
   }
 
   let toastTimer = null;
@@ -277,7 +293,11 @@
         .map((t, i) => `<span class="tag ${tagClasses[i % tagClasses.length]}">${escapeHtml(t)}</span>`)
         .join("");
 
-      const meta = [item.year, item.program].filter(Boolean).join(" · ");
+      const authorsStr = formatAuthorsDisplay(item.authors);
+      const metaParts = [];
+      if (authorsStr && authorsStr !== "—") metaParts.push(authorsStr);
+      if (item.year) metaParts.push(String(item.year));
+      const meta = metaParts.join(" • ");
 
       return (
         '<article class="card" tabindex="0" data-id="' + item.id + '">' +
@@ -295,7 +315,10 @@
       const year = yearFilter.value;
 
       const visible = publicCapstones.filter((item) => {
-        const haystack = (item.title + " " + (item.tags || []).join(" ") + " " + (item.program || "")).toLowerCase();
+        const authorsStr = Array.isArray(item.authors) ? item.authors.join(" ") : (item.authors || "");
+        const abstractStr = item.abstract || "";
+        const tagsStr = (item.tags || []).join(" ");
+        const haystack = (item.title + " " + authorsStr + " " + abstractStr + " " + tagsStr).toLowerCase();
         const matchesQuery = !query || haystack.includes(query);
         const matchesTags = activeTags.size === 0 ||
           (item.tags || []).some((t) => activeTags.has(t.trim ? t.trim() : t));
@@ -406,8 +429,8 @@
           '<div class="ucard__top">' +
             '<div>' +
               '<p class="ucard__title">' + escapeHtml(item.title) + '</p>' +
-              '<p class="ucard__meta">' + escapeHtml(item.authors) + ' &middot; ' + escapeHtml(item.year || "—") +
-                (item.adviser ? ' &middot; ' + escapeHtml(item.adviser) : '') + '</p>' +
+              '<p class="ucard__meta">' + escapeHtml(formatAuthorsDisplay(item.authors)) + ' &middot; ' + escapeHtml(item.year || "—") +
+                '</p>' +
               feedback +
             '</div>' +
             '<span class="pill ' + pillClass + '">' + pillLabel + '</span>' +
@@ -464,9 +487,7 @@
 
     const aiExtractedTitle = document.getElementById("aiExtractedTitle");
     const aiExtractedAuthors = document.getElementById("aiExtractedAuthors");
-    const aiExtractedAdviser = document.getElementById("aiExtractedAdviser");
     const aiExtractedDate = document.getElementById("aiExtractedDate");
-    const aiExtractedProgram = document.getElementById("aiExtractedProgram");
     const aiExtractedAbstract = document.getElementById("aiExtractedAbstract");
 
     let lastFocused2 = null;
@@ -695,9 +716,7 @@
         parsedResult = {
           title: r.title || titleCaseFromFilename(file.name),
           authors: r.authors ? formatAuthorsApa(r.authors) : "",
-          adviser: r.adviser || "",
           year: r.year || null,
-          program: r.program || "",
           abstract: r.abstract || "",
           tags: [],         // Tags are selected manually by the student
         };
@@ -709,9 +728,7 @@
         parsedResult = {
           title: titleCaseFromFilename(file.name),
           authors: "",
-          adviser: "",
           year: null,
-          program: "",
           abstract: "",
           tags: [],
         };
@@ -726,9 +743,7 @@
       // Update UI preview
       if (aiExtractedTitle) aiExtractedTitle.textContent = extractedData.title || "—";
       if (aiExtractedAuthors) aiExtractedAuthors.textContent = extractedData.authors || "—";
-      if (aiExtractedAdviser) aiExtractedAdviser.textContent = extractedData.adviser || "—";
       if (aiExtractedDate) aiExtractedDate.textContent = String(extractedData.year || "—");
-      if (aiExtractedProgram) aiExtractedProgram.textContent = extractedData.program || "—";
       if (aiExtractedAbstract) aiExtractedAbstract.textContent = extractedData.abstract || "—";
       if (aiFileName) aiFileName.textContent = generatedFileName;
 
@@ -772,9 +787,7 @@
           const payload = {
             title: extractedData.title,
             authors: extractedData.authors,
-            adviser: extractedData.adviser,
             year: extractedData.year,
-            program: extractedData.program,
             abstract: extractedData.abstract,
             tags: Array.from(selectedUploadTags),
             status: "Pending",
@@ -821,10 +834,13 @@
       lastFocused = document.activeElement;
 
       document.getElementById("detail-title").textContent = item.title;
-      const meta = [item.year, item.program].filter(Boolean).join(" · ");
-      document.getElementById("detailMeta").textContent = meta;
+      const authorsStr = formatAuthorsDisplay(item.authors);
+      const metaParts = [];
+      if (authorsStr && authorsStr !== "—") metaParts.push(authorsStr);
+      if (item.year) metaParts.push(String(item.year));
+      document.getElementById("detailMeta").textContent = metaParts.join(" • ");
       document.getElementById("detailAbstract").textContent = item.abstract || "No abstract provided.";
-      document.getElementById("detailAuthors").textContent = item.authors || "—";
+      document.getElementById("detailAuthors").textContent = authorsStr;
       document.getElementById("detailNote").textContent = "";
 
       const statusEl = document.getElementById("detailStatus");
@@ -880,21 +896,21 @@
       if (e.target === overlay) closeDetail();
     });
 
-    document.getElementById("detailDownloadBtn").addEventListener("click", () => {
-  const noteEl = document.getElementById("detailNote");
-  if (!openItem) {
-    if (noteEl) noteEl.textContent = "No data available.";
-    return;
-  }
-  
-  if (noteEl) noteEl.textContent = "Generating extracted PDF...";
-  
-  const safeTitle = (openItem.title || "capstone").substring(0, 40).replace(/[^a-zA-Z0-9]/g, "_");
-  const savedName = downloadSummaryPdf(openItem, safeTitle + ".pdf");
-  
-  showToast("Extracted PDF downloaded: " + savedName);
-  if (noteEl) noteEl.textContent = "";
-});
+    document.getElementById("detailDownloadBtn").addEventListener("click", async () => {
+      const noteEl = document.getElementById("detailNote");
+      if (!openItem || !openItem.file_path) {
+        noteEl.textContent = "No file is attached to this record.";
+        return;
+      }
+      noteEl.textContent = "Preparing download…";
+      const { data, error } = await db.storage.from(BUCKET).createSignedUrl(openItem.file_path, 60);
+      if (error || !data) {
+        noteEl.textContent = "Couldn't generate a download link.";
+        return;
+      }
+      noteEl.textContent = "";
+      window.open(data.signedUrl, "_blank");
+    });
 
  await Promise.all([loadPublicCapstones(), loadMySubmissions()]);
   applyFilters();
