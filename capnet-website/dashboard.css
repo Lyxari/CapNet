@@ -13,9 +13,12 @@
   --ink-08: rgba(23,24,26,.08);
   --paper: #F6F5F2;
   --paper-dim: #EAE8E3;
-  --rust: #B03A14;
-  --rust-dark: #8A2C0F;
-  --rust-tint: #F3E0D8;
+  --cyan: #0E7490;
+  --cyan-dark: #155E75;
+  --cyan-tint: #E0F2FE;
+  --rust: #0E7490;
+  --rust-dark: #155E75;
+  --rust-tint: #E0F2FE;
 
   --purple: #4A3F8F;
   --purple-tint: #E7E4F6;
@@ -561,6 +564,7 @@ table{ border-collapse: collapse; width: 100%; }
 }
 .tag--purple{ background: var(--purple-tint); color: var(--purple); }
 .tag--teal{ background: var(--teal-tint); color: var(--teal); }
+.tag--cyan,
 .tag--rust{ background: var(--rust-tint); color: var(--rust-dark); }
 .tag--pink{ background: var(--pink-tint); color: var(--pink); }
 .tag--indigo{ background: var(--indigo-tint); color: var(--indigo); }

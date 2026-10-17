@@ -62,7 +62,7 @@
 .roleselect:focus{
   outline: none;
   border-color: var(--rust);
-  box-shadow: 0 0 0 3px rgba(176,58,20,.14);
+  box-shadow: 0 0 0 3px rgba(14, 116, 144, .2);
 }
 
 .statuspill{
