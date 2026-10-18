@@ -6,13 +6,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Health check & status endpoints
-app.get('/', (req, res) => {
-  res.json({ status: 'ok', service: 'CapNet NLP Engine', version: '1.0.0' });
-});
+const path = require('path');
+
+// Serve static frontend files (index.html, dashboard.html, assets, styles, etc.)
+app.use(express.static(__dirname));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'healthy', uptime: process.uptime() });
+});
+
+app.get('/api/status', (req, res) => {
+  res.json({ status: 'ok', service: 'CapNet NLP Engine', version: '1.0.0' });
 });
 
 // AI-powered metadata extraction route (uses Google Gemini).
