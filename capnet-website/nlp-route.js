@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
-const { analyzeCapstone } = require('./nlp-engine'); // local scanner, used only if Gemini is unavailable
+const { analyzeCapstone, chooseTitle } = require('./nlp-engine'); // local scanner, used only if Gemini is unavailable
 
 const upload = multer({ limits: { fileSize: 25 * 1024 * 1024 } });
 
@@ -31,7 +31,11 @@ async function callGemini(pdfText) {
 
   // Trim to first ~12 000 chars to stay well within Gemini's context window
   // while capturing the cover page, abstract, and early chapters.
-  const trimmed = pdfText.slice(0, 12000);
+  const trimmed = pdfText.slice(0, 12000).replace(/\f/g, '\n\n[PAGE BREAK]\n\n');
+
+  // The cover page on its own, so the model can tell the title apart from header lines.
+  const pages = pdfText.split('\f');
+  const cover = (pages[0].trim().length < 150 && pages[1] ? pages[0] + '\n' + pages[1] : pages[0]).slice(0, 3000);
 
   const systemPrompt = `You are a metadata extractor for academic capstone/thesis papers. Given the raw text extracted from a PDF, return ONLY a valid JSON object with these fields:
 
@@ -47,6 +51,9 @@ Rules:
 - If a field is not found, use "" for strings, [] for arrays, or null for year.
 - For authors, return each author's full name as a separate array element.
 - For the abstract, return the complete abstract section if present. If there is no explicit "Abstract" section, extract the first substantive paragraph from the Introduction that summarizes the work.
+- The "title" is the title of the STUDY itself. It is NOT the degree program (e.g. "BACHELOR OF ARTS IN ..."), NOT the document type (e.g. "Capstone/Special Project", "Thesis"), NOT the name of the university, college, or faculty, and it must not contain page numbers. On a cover page the title usually sits between those header lines and the "by" / "Submitted by" line. Keep the title's original wording and join lines that were wrapped.
+- "authors" are ONLY the students/researchers who wrote the study (listed after "by" / "Submitted by" on the cover page) — NOT the adviser, panel members, dean, or faculty. Write each name without titles (Dr., Engr.) or credentials (PhD, MBA), and not in ALL CAPS.
+- A COVER PAGE section is provided first; use it for the title, authors, and year.
 - Return ONLY the JSON — no markdown fences, no commentary, no explanation.`;
 
   const body = {
@@ -54,6 +61,7 @@ Rules:
       {
         parts: [
           { text: systemPrompt },
+          { text: `\n\n--- COVER PAGE ---\n\n${cover}` },
           { text: `\n\n--- DOCUMENT TEXT ---\n\n${trimmed}` },
         ],
       },
@@ -184,10 +192,36 @@ function renderPageWithBreaks(pageData) {
   });
 }
 
-async function localExtract(buffer) {
-  const parsed = await pdfParse(buffer, { max: 30, pagerender: renderPageWithBreaks });
-  const r = analyzeCapstone(parsed.text);
-  return { title: r.title, authors: r.authors, year: r.year, abstract: r.abstract };
+function localExtract(text) {
+  const r = analyzeCapstone(text);
+  return { title: r.title, authors: r.authors, year: r.year, abstract: r.abstract, abstractFound: r.abstractFound };
+}
+
+// ------------------------------------------------------------------
+// Author names: drop titles/credentials/footnote marks, un-shout ALL CAPS,
+// remove duplicates and anything that is clearly not a person.
+// (The dashboard then turns them into APA style, e.g. "Lariosa, D. E. T.")
+// ------------------------------------------------------------------
+function normalizeAuthors(input) {
+  const list = Array.isArray(input) ? input : String(input || '').split(/;|\n/);
+  const seen = new Set();
+  const out = [];
+  for (let name of list) {
+    name = String(name || '')
+      .replace(/[*\u2020\u2021\u00B9\u00B2\u00B3]+/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^(?:Dr|Engr|Prof|Mr|Ms|Mrs|Atty)\.?\s+/i, '')
+      .replace(/,?\s*(?:Ph\.?D\.?|MBA|MAMS|MSc|MIT|MIS|DIT|RN|LPT|CPA|PECE)\.?$/i, '')
+      .replace(/\d+$/, '')
+      .trim();
+    if (name.length < 3 || /\b(?:adviser|advisor|panel|dean|university|college)\b/i.test(name)) continue;
+    name = name.split(' ').map((w) => (w.length > 2 && w === w.toUpperCase()
+      ? w.charAt(0) + w.slice(1).toLowerCase() : w)).join(' ');
+    const key = name.toLowerCase();
+    if (!seen.has(key)) { seen.add(key); out.push(name); }
+  }
+  return out;
 }
 
 router.post('/process-capstone', upload.single('pdf'), async (req, res) => {
@@ -196,7 +230,8 @@ router.post('/process-capstone', upload.single('pdf'), async (req, res) => {
       return res.status(400).json({ success: false, error: 'No PDF file uploaded.' });
     }
 
-    const pdfData = await pdfParse(req.file.buffer);
+    // Page breaks (form-feed) are added so the cover page and Abstract section can be told apart.
+    const pdfData = await pdfParse(req.file.buffer, { pagerender: renderPageWithBreaks });
     const rawText = pdfData.text;
 
     if (!rawText || !rawText.trim()) {
@@ -204,6 +239,15 @@ router.post('/process-capstone', upload.single('pdf'), async (req, res) => {
         success: false,
         error: 'The uploaded PDF contains no readable text.',
       });
+    }
+
+    // Built-in scan of the cover page + Abstract section (first 30 pages). Used to double-check
+    // Gemini, and as the fallback if Gemini is unavailable.
+    let local = null;
+    try {
+      local = localExtract(rawText.split('\f').slice(0, 30).join('\f\n'));
+    } catch (scanErr) {
+      console.warn('Local scan failed:', scanErr.message);
     }
 
     let result;
@@ -215,19 +259,38 @@ router.post('/process-capstone', upload.single('pdf'), async (req, res) => {
       if (geminiErr && geminiErr.fatal) {
         console.error('Check GEMINI_API_KEY on Render - Gemini rejected the key.');
       }
-      // Don't fail the student's upload - scan the PDF locally instead.
-      result = await localExtract(req.file.buffer);
+      // Don't fail the student's upload - use the built-in scan instead.
+      if (!local) throw geminiErr;
+      result = local;
       source = 'local-scan';
     }
 
-    // Normalize the Gemini response into the format the frontend expects
+    // Title: make sure it is the title of the STUDY, not the cover's program / university lines.
+    const title = chooseTitle(result.title, local && local.title);
+
+    // Authors: cleaned; if Gemini found none, use what the cover page scan found.
+    let authors = normalizeAuthors(result.authors);
+    if (!authors.length && local) authors = normalizeAuthors(local.authors);
+
+    // Year: Gemini's, or the cover page's if Gemini gave none.
+    const yearNum = Number(result.year);
+    const year = Number.isFinite(yearNum) && yearNum > 0 ? yearNum : (local && local.year) || null;
+
+    // Abstract: if the PDF has a real Abstract section, copy it word-for-word (Gemini may shorten it).
+    let abstract = result.abstract || '';
+    if (local && local.abstractFound) {
+      abstract = local.abstract;
+      if (source === 'gemini-ai') source = 'pdf-abstract-section';
+    }
+
+    // Normalize the response into the format the frontend expects
     return res.status(200).json({
       success: true,
       data: {
-        title: result.title || '',
-        authors: Array.isArray(result.authors) ? result.authors.join('; ') : (result.authors || ''),
-        year: Number.isFinite(Number(result.year)) && Number(result.year) > 0 ? Number(result.year) : null,
-        abstract: result.abstract || '',
+        title,
+        authors: authors.join('; '),
+        year,
+        abstract,
         abstractSource: source,
         tags: [],           // Tags are now manually selected by the student
       },
@@ -238,4 +301,4 @@ router.post('/process-capstone', upload.single('pdf'), async (req, res) => {
   }
 });
 
-module.exports = router;
+module.exports = router;

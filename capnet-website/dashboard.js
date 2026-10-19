@@ -99,6 +99,49 @@
     let name = rawName.trim();
     if (!name) return "";
 
+    // ---- Tidy-up first: titles, credentials, footnote marks, ALL CAPS, and "Surname, Given Names" order ----
+    name = name
+      .replace(/^(?:Dr|Engr|Prof|Mr|Ms|Mrs|Atty)\.?\s+/i, "")
+      .replace(/,?\s*(?:Ph\.?D\.?|MBA|MAMS|MSc|MIT|MIS|DIT|RN|LPT|CPA|PECE)\.?$/i, "")
+      .replace(/[*\u2020\u2021\u00B9\u00B2\u00B3\d]+$/u, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!name) return "";
+
+    // "LARIOSA" / "dianne" -> "Lariosa" / "Dianne" (hyphenated names too); mixed case like "McDonald" is left alone.
+    const fixCase = (w) => w.split("-").map((part) =>
+      part.length > 1 && (part === part.toUpperCase() || part === part.toLowerCase())
+        ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+        : part
+    ).join("-");
+
+    // "Dianne" -> "D."   "Jo-Anne" -> "J.-A."   "T." -> "T."   "D.E.T." -> "D. E. T."
+    const toInitials = (words) => words.map((w) => {
+      const letters = w.match(/\p{L}\.(?=\p{L}\.)|\p{L}\.?/gu);
+      if (/^(?:\p{L}\.){2,}$/u.test(w)) return letters.map((l) => l.charAt(0).toUpperCase() + ".").join(" ");
+      return w.replace(/\.$/, "").split("-").filter(Boolean)
+        .map((p) => p.charAt(0).toUpperCase() + ".").join("-");
+    }).filter(Boolean).join(" ");
+
+    // Printed as "Surname, Given Names"  (e.g. "LARIOSA, DIANNE ELAINE T." or "Lariosa, D. E. T.")
+    const commaAt = name.indexOf(",");
+    if (commaAt > 0) {
+      let tail = name.slice(commaAt + 1).trim();
+      let suffixPart = "";
+      const sfx = tail.match(/,?\s*(Jr\.?|Sr\.?|II|III|IV)$/i);
+      if (sfx) { suffixPart = ", " + sfx[1].replace(/\.?$/, "."); tail = tail.slice(0, sfx.index).trim(); }
+      const givenWords = tail.split(/\s+/).filter(Boolean);
+      const surnameText = name.slice(0, commaAt).trim();
+      const isSuffixOnly = /^(?:Jr\.?|Sr\.?|II|III|IV)$/i.test(tail);
+      if (givenWords.length > 0 && !isSuffixOnly && surnameText) {
+        const surname = surnameText.split(/\s+/).map(fixCase).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+        return surname + ", " + toInitials(givenWords) + suffixPart;
+      }
+    }
+
+    // Printed as "Given Names Surname" in ALL CAPS or all lowercase -> normal capitals before the logic below
+    name = name.split(" ").map(fixCase).join(" ");
+
     // Already looks APA-formatted ("Surname, F." or "Surname, F. M.") — leave it alone.
     if (/^[\p{L}'’.-]+,\s*(?:[\p{L}]\.\s*){1,4}(?:,\s*(?:Jr\.?|Sr\.?|II|III|IV))?$/u.test(name)) {
       return name;
@@ -139,7 +182,7 @@
     const surname = surnameWords.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
     if (firstNameWords.length === 0) return surname + suffix;
 
-    const initials = firstNameWords.map((w) => w.charAt(0).toUpperCase() + ".").join(" ");
+    const initials = toInitials(firstNameWords);
     return surname + ", " + initials + suffix;
   }
 
@@ -161,8 +204,16 @@
 
   function formatAuthorsDisplay(raw) {
     if (!raw) return "—";
-    if (Array.isArray(raw)) return raw.join(", ");
-    return String(raw).replace(/;\s*/g, ", ");
+    const asList = Array.isArray(raw) ? raw : (String(raw).includes(";") ? String(raw).split(/;|\n/) : null);
+    if (asList) {
+      // A list of names -> one consistent APA string: "Hio, J. N. D., Ebuen, E. X. G., & Tan, J. L. D."
+      const cleaned = asList.map((n) => String(n).trim()).filter(Boolean);
+      return cleaned.length ? formatAuthorsApa(cleaned.join("; ")) : "—";
+    }
+    const text = String(raw).trim();
+    // Already an APA-style string ("A, B. C., & D, E.") -> show as stored. Anything else (one plain or ALL CAPS name) gets formatted.
+    if (/&/.test(text) || /^[^,]+,\s*(?:\p{L}\.(?:[\s-]|,|$))/u.test(text)) return text;
+    return formatAuthorsApa(text) || "—";
   }
 
   let toastTimer = null;
@@ -611,7 +662,8 @@
        Google Gemini AI on the server via POST /api/nlp/process-capstone) */
 
     /* Generate a PDF summary using jsPDF instead of plain text */
-    function downloadSummaryPdf(meta, filename) {
+    function downloadSummaryPdf(meta, filename, opts) {
+      opts = opts || {};
       if (!window.jspdf || !window.jspdf.jsPDF) {
         showToast("PDF library not loaded yet. Please try again in a moment.");
         return;
@@ -652,7 +704,7 @@
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
       doc.text("Source: " + (filename || "—"), margin, 27);
-      doc.text("Extracted: " + new Date().toLocaleString(), margin, 34);
+      doc.text("Extracted: " + (opts.extractedAt || new Date()).toLocaleString(), margin, 34);
 
       y = 52;
       doc.setTextColor(30, 30, 30);
@@ -660,7 +712,7 @@
       // Only Title, Authors, and Year remain
       addField("Title", meta.title);
       addField("Authors", meta.authors);
-      addField("Year", String(meta.year));
+      addField("Year", meta.year ? String(meta.year) : "—");
 
       // Abstract
       doc.setDrawColor(200, 200, 200);
@@ -673,7 +725,7 @@
       if (y > 270) { doc.addPage(); y = 20; }
       doc.setFontSize(8);
       doc.setTextColor(150, 150, 150);
-      doc.text("Generated by CapNet AI Document Intelligence. Awaiting faculty review.", margin, y);
+      doc.text(opts.footer || "Generated by CapNet AI Document Intelligence. Awaiting faculty review.", margin, y);
 
       const pdfName = (filename || "capstone").replace(/\.pdf$/i, "") + "_extracted_summary.pdf";
       doc.save(pdfName);
@@ -867,7 +919,6 @@
       if (item.year) metaParts.push(String(item.year));
       document.getElementById("detailMeta").textContent = metaParts.join(" • ");
       document.getElementById("detailAbstract").textContent = item.abstract || "No abstract provided.";
-      document.getElementById("detailAuthors").textContent = authorsStr;
       document.getElementById("detailNote").textContent = "";
 
       const statusEl = document.getElementById("detailStatus");
@@ -925,6 +976,31 @@
 
     document.getElementById("detailDownloadBtn").addEventListener("click", async () => {
       const noteEl = document.getElementById("detailNote");
+
+      // Other students get the EXTRACTED summary PDF (title, authors, year, abstract) —
+      // the same report the author saw when uploading — not the full manuscript.
+      // Only the student who uploaded the capstone downloads the original file.
+      const isOwner = !!(openItem && openItem.uploaded_by && sessionUser && openItem.uploaded_by === sessionUser.id);
+      if (openItem && !isOwner) {
+        const storedName = (openItem.file_path || "").split("/").pop().replace(/^\d+-/, "");
+        const sourceName = storedName || ((openItem.title || "capstone").replace(/[^\w]+/g, "_").slice(0, 60) + ".pdf");
+        const saved = downloadSummaryPdf(
+          {
+            title: openItem.title,
+            authors: formatAuthorsDisplay(openItem.authors),
+            year: openItem.year,
+            abstract: openItem.abstract,
+          },
+          sourceName,
+          {
+            extractedAt: openItem.created_at ? new Date(openItem.created_at) : new Date(),
+            footer: "Generated by CapNet AI Document Intelligence. Approved capstone summary.",
+          }
+        );
+        noteEl.textContent = saved ? "Downloaded " + saved : "";
+        return;
+      }
+
       if (!openItem || !openItem.file_path) {
         noteEl.textContent = "No file is attached to this record.";
         return;

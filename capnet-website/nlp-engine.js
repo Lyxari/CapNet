@@ -30,12 +30,14 @@
     String(rawText || "")
       .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, " ")
       .replace(/\r/g, "")
+      .replace(/\f/g, "\n\f\n")                 // a page break is always its own line
       .split("\n")
       .forEach((raw) => {
         const hasFormFeed = raw.indexOf("\f") !== -1;
         const l = raw.replace(/\f/g, "").replace(/\s+/g, " ").trim();
         if (l) {
-          const isPageNo = /^\d{1,3}$/.test(l) || (ROMAN.test(l) && l.length <= 6 && !/^(?:i|a)$/i.test(l));
+          // bare page numbers: 12, iv, and the lone "i" of page one of the front matter ("a" is kept: it can be a title word)
+          const isPageNo = /^\d{1,3}$/.test(l) || (ROMAN.test(l) && l.length <= 6 && !/^a$/i.test(l));
           const isTocLeader = /\.{4,}/.test(l);
           if (!isPageNo && !isTocLeader) out.push(l);
         }
@@ -222,24 +224,95 @@
     return real(lines.slice(0, Math.min(end, 80)));
   }
 
+  /* ---- lines that are cover "chrome", never the title of the study ---- */
+  const isAllCaps = (l) => /[A-Z]/.test(l) && l === l.toUpperCase();
+  const wordCount = (l) => l.split(/\s+/).filter(Boolean).length;
+
+  // University / faculty / department lines:  "UNIVERSITY OF THE PHILIPPINES OPEN UNIVERSITY",
+  // "College of Computer Studies", "Technological Institute of the Philippines - Manila", "De La Salle University"
+  const INSTITUTION_START = /^(?:the\s+)?(?:university|college|institute|school|faculty|department|polytechnic|academy|campus|republic|commission|office)\s+of\b/i;
+  const INSTITUTION_NAME = /^(?:[A-Z][\w.'’&-]*\s+){1,4}(?:University|College|Institute|Polytechnic|Academy)(?:\s+of\s+[\w\s.,&'’-]+?)?(?:\s*[-–—]\s*[\w\s]+)?$/;
+  // Shouted version of "<Name> University / College / Institute ..." (needs the institution word to END the name part)
+  const INSTITUTION_NAME_CAPS = /^(?:[A-Z][A-Z.'’&-]*\s+){1,4}(?:UNIVERSITY|COLLEGE|INSTITUTE|POLYTECHNIC|ACADEMY)(?:\s+OF\s+[A-Z\s.,&'’-]+?)?(?:\s*[-–—]\s*[A-Z\s]+)?$/;
+
+  // Degree / program lines:  "BACHELOR OF ARTS IN MULTIMEDIA STUDIES", "Master of Science in …", "BS Computer Science"
+  const DEGREE_LINE = /\b(?:bachelor|master|doctor(?:ate)?|associate|diploma)\b.*\b(?:of|in)\b|^(?:bs|ba|ms|ma|ph\.?d)\b\s+(?:in|of)\b/i;
+
+  // Document-type lines:  "Capstone/Special Project", "Thesis", "A Capstone Project", "Undergraduate Thesis"
+  const DOC_TYPE = /^(?:an?\s+)?(?:(?:undergraduate|graduate|final|senior)\s+)?(?:thesis|capstone|dissertation|special project|research project|practicum|project|study|manuscript)(?:\s*(?:\/|&|and|\+)\s*(?:thesis|capstone|special project|research project|project|study))*(?:\s+(?:proposal|paper|report|manuscript))?\s*:?$/i;
+
+  // Boilerplate sentences of a cover page
+  const CHROME = /^(?:(?:presented|submitted|prepared|proposed|developed|approved|certified)\s+(?:to|by|in|for|at|as)\b|in partial|as (?:a )?(?:partial )?requirement|requirements? for|fulfillment|republic of the|city of|month\b|date\b)/i;
+  // "A Capstone Project", "A Thesis Presented to the", "An Activity/Assignment", a lone "An"  (but NOT a title like "A Study of Plastic Waste")
+  const CHROME_DOC = /^(?:an?|the)$|^activity\s*[\/&]\s*assignment$|^an?\s+(?:activity|assignment)\b|^an?\s+(?:thesis|capstone(?: project)?|research(?: project| paper)?|project|dissertation|study|paper)\s*(?:presented|submitted|proposal|report|in partial|to the|for the|:|$)/i;
+
+  function isChromeLine(l) {
+    if (DEGREE_LINE.test(l)) return true;
+    if (DOC_TYPE.test(l)) return true;
+    if (CHROME.test(l) || CHROME_DOC.test(l)) return true;
+    if (BY_MARKER.test(l) || BY_INLINE.test(l)) return true;
+    if (ADVISER_LABEL.test(l) || PANEL_LABEL.test(l)) return true;
+    if (/^(?:19|20)\d{2}$/.test(l)) return true;                                       // a lone year
+    if (new RegExp("^" + MONTHS + "\\.?\\s+(?:\\d{1,2},?\\s*)?(?:19|20)\\d{2}$", "i").test(l)) return true;   // "June 2025"
+    if (INSTITUTION_START.test(l)) return true;
+    if (INSTITUTION_NAME_CAPS.test(l) && wordCount(l) <= 10) return true;
+    if (INSTITUTION_NAME.test(l) && wordCount(l) <= 10) return true;
+    return false;
+  }
+
+  // Strong "this is a person" signal, used only when the cover has no "By" line.
+  const looksLikePersonLine = (l) =>
+    splitNameList(l).length >= 2 ||
+    (wordCount(l) <= 5 && (isName(l) || surnameFirst(l)) && (/\b\p{Lu}\.(?:\s|$)/u.test(l) || l.includes(",")));
+
+  // Join wrapped title lines. A trailing hyphen is kept ("Socio-" + "Political" -> "Socio-Political").
+  function joinTitleLines(lines) {
+    let out = "";
+    for (const l of lines) {
+      if (!out) out = l;
+      else if (/-$/.test(out)) out += l;
+      else out += " " + l;
+    }
+    return out.replace(/\s+/g, " ").trim();
+  }
+
+  function pickTitle(head) {
+    // Where do the authors begin? Everything from the "By" line on is not title.
+    const byIdx = head.findIndex((l) => BY_MARKER.test(l) || BY_INLINE.test(l));
+    const limit = byIdx !== -1 ? byIdx : head.length;
+
+    // Split the lines before the authors into blocks separated by chrome lines.
+    const blocks = [];
+    let cur = [];
+    const flush = () => { if (cur.length) { blocks.push(cur); cur = []; } };
+    for (let i = 0; i < limit; i++) {
+      const l = head[i];
+      if (isChromeLine(l) || (byIdx === -1 && cur.length && looksLikePersonLine(l))) { flush(); if (byIdx === -1 && looksLikePersonLine(l) && !isChromeLine(l)) break; continue; }
+      cur.push({ text: l, idx: i });
+    }
+    flush();
+
+    // The title of the study is the longest block of non-chrome text.
+    let best = null;
+    for (const blk of blocks) {
+      const words = blk.reduce((n, x) => n + wordCount(x.text), 0);
+      if (words >= 2 && (!best || words > best.words)) best = { blk, words };
+    }
+    if (!best) return { title: "", endIdx: 0, indexes: new Set() };
+
+    return {
+      title: joinTitleLines(best.blk.map((x) => x.text)),
+      endIdx: best.blk[best.blk.length - 1].idx + 1,
+      indexes: new Set(best.blk.map((x) => x.idx)),
+    };
+  }
+
   function parseCover(lines) {
     const head = coverLines(lines);
 
-    /* ---- title ---- */
-    let titleLines = [];
-    const stopIdx = head.findIndex((l, i) => i >= 1 && i <= 14 && TITLE_STOP.some((re) => re.test(l)));
-    if (stopIdx !== -1) {
-      // Cover-page layout: everything above "A Capstone Project / Presented to / By …" is the title.
-      titleLines = head.slice(0, Math.min(stopIdx, 6));
-    } else {
-      // Journal layout: title lines run until the author names begin.
-      for (const l of head) {
-        if (titleLines.length >= 1 && (isName(l) || splitNameList(l).length || AFFILIATION.test(l))) break;
-        titleLines.push(l);
-        if (titleLines.length >= 4) break;
-      }
-    }
-    let title = titleLines.join(" ").replace(/\s+/g, " ").trim();
+    /* ---- title (the title of the STUDY, not the program / university / document type) ---- */
+    const picked = pickTitle(head);
+    const title = picked.title;
 
     /* ---- authors ---- */
     const authors = [];
@@ -253,7 +326,7 @@
     };
 
     const byIdx = head.findIndex((l) => BY_MARKER.test(l) || BY_INLINE.test(l));
-    let start = byIdx !== -1 ? byIdx : titleLines.length;
+    let start = byIdx !== -1 ? byIdx : picked.endIdx;
     if (byIdx !== -1) {
       const inline = head[byIdx].match(BY_INLINE);
       if (inline) pushName(inline[1].trim());
@@ -265,17 +338,16 @@
       if (ADVISER_LABEL.test(l) || PANEL_LABEL.test(l)) break;
       if (BY_MARKER.test(l)) continue;
       const next = head[i + 1];
-      if (next && ADVISER_ALONE.test(next)) break;           // name sits above a lone "Adviser" label → it's the adviser
-      if (/^(?:bachelor|master|doctor)/i.test(l) || /^in partial/i.test(l)) continue;
+      if (next && ADVISER_ALONE.test(next)) break;           // name sits above a lone "Adviser" label -> it's the adviser
+      if (isChromeLine(l)) continue;                         // degree / doc-type / institution lines between the names
       if (!pushName(l) && authors.length) break;             // names ended
     }
     const uniqueAuthors = [...new Map(authors.map((a) => [a.toLowerCase(), a])).values()];
 
     /* ---- year ---- */
-    // Search the cover but not the title itself ("…2020 Forecast…" is not the submission year).
-    const coverBody = head.slice(titleLines.length).join(" ");
+    // Search the cover but not the title itself ("...2020 Forecast..." is not the submission year).
+    const coverBody = head.filter((_, i) => !picked.indexes.has(i)).join(" ");
     const maxYear = new Date().getFullYear() + 1;
-    // Fallback: dated lines elsewhere in the first pages (approval sheet, etc.)
     const extra = real(lines.slice(0, 400)).join(" ");
     const year = findYear(coverBody, extra, maxYear);
 
@@ -297,5 +369,42 @@
     };
   }
 
-  return { analyzeCapstone };
+  /* ---------------- title helpers (used by nlp-route.js to double-check Gemini) ---------------- */
+
+  const norm = (t) => String(t || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+  // Words that belong to a cover header, not to the title of a study.
+  const HEADER_NOISE = /\b(?:bachelor|master|doctor(?:ate)?) of\b|capstone\/special project|special project\b|\bopen university\b|\buniversity of the philippines\b|\bfaculty of\b|\bcollege of\b|\bsubmitted (?:to|by)\b|\bin partial fulfillment\b/i;
+
+  // Remove header junk glued onto the start/end of a title: program, document type, institution, stray page numbers.
+  function stripHeaderNoise(t) {
+    let out = String(t || "").replace(/\s+/g, " ").trim();
+    out = out
+      .replace(/^(?:(?:UNIVERSITY|COLLEGE|FACULTY|INSTITUTE|SCHOOL)\b[A-Z\s.,&'-]*?\s+)?(?:(?:BACHELOR|MASTER|DOCTOR)\s+OF\s+[A-Z&,\s]+?\s+)(?=[A-Z][a-z]|Capstone|Thesis)/, "")
+      .replace(/^(?:(?:Bachelor|Master|Doctor) of [A-Za-z&,\s]+?\s+)(?=(?:Capstone|Thesis|Special Project|Dissertation))/i, "")
+      .replace(/^(?:(?:undergraduate|graduate)\s+)?(?:capstone\s*\/\s*special project|special project|capstone project|thesis|dissertation)\s*[:\-]?\s+/i, "")
+      .replace(/\s+(?:[ivx]{1,4}\s+)?(?:UNIVERSITY|COLLEGE|INSTITUTE|SCHOOL|FACULTY)\b[A-Z\s.,&'-]*$/, "")
+      .replace(/\s+(?:[ivx]{1,4}|\d{1,3})$/, "")
+      .replace(/^(?:[ivx]{1,4}|\d{1,3})\s+(?=[A-Z])/, "");
+    return out.trim();
+  }
+
+  // Decide between Gemini's title and the PDF-structure title.
+  // The PDF-structure title (from the cover page layout) is the referee; text is only stripped when it disagrees.
+  function chooseTitle(geminiTitle, localTitle) {
+    const raw = String(geminiTitle || "").replace(/\s+/g, " ").trim();
+    const l = String(localTitle || "").replace(/\s+/g, " ").trim();
+    if (!raw) return l;
+    if (!l || l.length < 8) return stripHeaderNoise(raw);          // nothing to compare with: clean it up
+    const rn = norm(raw), ln = norm(l);
+    if (rn === ln) return l;                                       // agree -> keep as is (so "I Love Cebu" stays "I Love Cebu")
+    if (rn.includes(ln)) return l;                                 // Gemini glued header lines / a page number onto the real title
+    const g = stripHeaderNoise(raw);
+    const gn = norm(g);
+    if (gn === ln || gn.includes(ln)) return l;
+    if (HEADER_NOISE.test(g) && !HEADER_NOISE.test(l)) return l;   // Gemini returned a header; the PDF structure says otherwise
+    return g;
+  }
+
+  return { analyzeCapstone, chooseTitle, stripHeaderNoise };
 });
